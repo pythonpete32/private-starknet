@@ -1,0 +1,13 @@
+# Example inputs for private transfer circuit
+
+# Public inputs
+commitment_new = "0x123456789abcdef"  # This will be computed by the circuit
+nullifier = "0xfedcba987654321"       # This will be computed by the circuit
+
+# Private inputs
+value_old = "100"      # Previous balance
+value_new = "70"       # New balance after transfer
+nonce_old = "111"      # Random nonce for old commitment
+nonce_new = "222"      # Random nonce for new commitment
+secret_key = "12345"   # User's secret key
+asset_id = "1"         # ID of the asset being transferred

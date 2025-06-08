@@ -1,0 +1,14 @@
+{
+  "name": "merkle-tree-utils",
+  "version": "1.0.0",
+  "description": "Circuit-compatible Merkle tree utilities for private transfer circuit",
+  "scripts": {
+    "generate-proof": "bun run generate-circuit-proof.ts",
+    "test": "bun test circuit-compatible-merkle.test.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "bun-types": "latest",
+    "@types/node": "^20.11.17"
+  }
+}
