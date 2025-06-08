@@ -1,0 +1,15 @@
+{
+  "name": "account-system-utils",
+  "version": "1.0.0",
+  "description": "TypeScript utilities for account-based private transfers",
+  "main": "account-system.ts",
+  "scripts": {
+    "test": "bun test",
+    "test:account": "bun test account-system.test.ts",
+    "generate-proof": "bun run generate-account-proof.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.17",
+    "bun-types": "latest"
+  }
+}

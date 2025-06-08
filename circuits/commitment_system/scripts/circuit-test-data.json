@@ -119,7 +119,7 @@
     }
   },
   "metadata": {
-    "generated": "2025-06-08T16:51:28.218Z",
+    "generated": "2025-06-08T17:16:46.142Z",
     "compatible": "Noir circuit main.nr",
     "description": "Simple single-node Merkle tree test case"
   }
