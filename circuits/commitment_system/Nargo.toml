@@ -1,0 +1,6 @@
+[package]
+name = "commitment_system"
+type = "bin"
+authors = [""]
+
+[dependencies]

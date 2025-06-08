@@ -69,13 +69,15 @@ private-dai-starknet/
 - [x] Install Starknet tools (starkli, scarb)
 - [x] Create project directory structure
 
-### Phase 2: ZK Circuit Development
-- [ ] Design account/balance commitment structure
-- [ ] Write Noir circuit for private transfers
-- [ ] Implement merkle tree verification
-- [ ] Add nullifier generation (prevent double-spending)
-- [ ] Create test cases for the circuit
-- [ ] Compile and test locally with Nargo
+### Phase 2: ZK Circuit Development ✅ COMPLETED
+- [x] Design account/balance commitment structure
+- [x] Write Noir circuit for private transfers
+- [x] Implement merkle tree verification (prevents fake balance attacks)
+- [x] Add nullifier generation (prevent double-spending)
+- [x] Create test cases for the circuit
+- [x] Compile and test locally with Nargo
+- [x] Create TypeScript/Bun utilities for Merkle proof generation
+- [x] Add comprehensive documentation and usage guide
 
 ### Phase 3: Frontend Development  
 - [ ] Setup Vite project with NoirJS

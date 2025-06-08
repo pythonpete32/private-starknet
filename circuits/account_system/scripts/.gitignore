@@ -1,0 +1,5 @@
+node_modules/
+*.log
+.DS_Store
+account-test-data.json
+account-circuit-inputs.toml

@@ -1,0 +1,6 @@
+[package]
+name = "account_system"
+type = "bin"
+authors = [""]
+
+[dependencies]
