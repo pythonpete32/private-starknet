@@ -218,15 +218,7 @@ import { Toggle } from "@inkonchain/ink-kit";
 />
 ```
 
-### ConnectWallet
-```jsx
-import { ConnectWallet } from "@inkonchain/ink-kit";
 
-<ConnectWallet
-  className=""                     // string
-  listItems={<CustomItems />}      // ReactNode
-/>
-```
 
 ### Typography
 ```jsx

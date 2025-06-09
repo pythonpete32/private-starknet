@@ -3,14 +3,17 @@
 import { useState, useEffect } from 'react';
 import { Typography, Card, Input, Button, Alert } from '@inkonchain/ink-kit';
 import { WalletConnect } from '../../components/WalletConnect';
-import { useWallet } from '../../hooks/useWallet';
 import { accountSystemProver, CircuitUtils, type AccountSystemInputs, type ProofResult } from '../../lib/circuits';
 
 export default function AccountSystemPage() {
-  const { isConnected, address, shortAddress } = useWallet();
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
   const [senderBalance, setSenderBalance] = useState('1000');
+  
+  // Wallet state
+  const [address, setAddress] = useState<string>('');
+  const [isConnected, setIsConnected] = useState(false);
+  const [shortAddress, setShortAddress] = useState<string>('');
   
   // Proof generation state
   const [isGenerating, setIsGenerating] = useState(false);
@@ -21,6 +24,40 @@ export default function AccountSystemPage() {
   
   // Browser support check
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
+
+  // Listen for wallet connection events
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleWalletConnected = (event: any) => {
+      const walletAddress = event.detail?.address || '';
+      setAddress(walletAddress);
+      setIsConnected(true);
+      setShortAddress(walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : '');
+    };
+    
+    const handleWalletDisconnected = () => {
+      setAddress('');
+      setIsConnected(false);
+      setShortAddress('');
+    };
+
+    // Check if already connected
+    const storedAddress = localStorage.getItem('wallet_address');
+    if (storedAddress) {
+      setAddress(storedAddress);
+      setIsConnected(true);
+      setShortAddress(`${storedAddress.slice(0, 6)}...${storedAddress.slice(-4)}`);
+    }
+
+    window.addEventListener('walletConnected', handleWalletConnected);
+    window.addEventListener('walletDisconnected', handleWalletDisconnected);
+
+    return () => {
+      window.removeEventListener('walletConnected', handleWalletConnected);
+      window.removeEventListener('walletDisconnected', handleWalletDisconnected);
+    };
+  }, []);
 
   // Check browser support on mount
   useEffect(() => {
@@ -73,39 +110,34 @@ export default function AccountSystemPage() {
       await accountSystemProver.initialize();
       setProgressMessage('Generating proof inputs...');
       
-      // Generate proper inputs based on actual circuit signature
-      const senderAccount = CircuitUtils.generateMockAccount(senderBalance, "0");
+      // Generate a deterministic secret key for demo
       const senderSecretKey = CircuitUtils.generateSecretKey();
-      const newBalance = (balance - transferAmount).toString();
       
-      const inputs: AccountSystemInputs = {
-        // Public inputs
-        merkle_root: "0",
-        sender_nullifier: CircuitUtils.calculateNullifier(senderSecretKey, "0"),
-        sender_new_commitment: CircuitUtils.calculateCommitment(senderAccount.pubkey, newBalance, "1"),
-        recipient_new_commitment: CircuitUtils.calculateCommitment(recipient, amount, "0"),
-        asset_id: "1",
-        
-        // Private inputs
-        sender_account: senderAccount,
-        sender_secret_key: senderSecretKey,
-        transfer_amount: amount,
-        recipient_pubkey: recipient,
-        recipient_old_balance: "0",
-        recipient_old_nonce: "0",
-        sender_new_account: {
-          ...senderAccount,
-          balance: newBalance,
-          nonce: "1"
-        },
-        sender_merkle_path: CircuitUtils.generateMockMerklePath(),
-        sender_merkle_indices: CircuitUtils.generateMockMerkleIndices()
-      };
+      // Generate inputs that satisfy ALL circuit constraints
+      const inputs: AccountSystemInputs = CircuitUtils.generateValidTransferInputs(
+        senderSecretKey,
+        recipient, // recipient pubkey
+        amount,
+        senderBalance
+      );
+
+      console.log('🔍 Generated inputs that should satisfy ALL circuit constraints:', {
+        ...inputs,
+        explanation: {
+          'pubkey_derivation': 'pubkey derived from secret_key',
+          'merkle_tree': 'single-leaf tree (commitment = root)',
+          'nullifier': 'hash of commitment + secret',
+          'balance_check': `${senderBalance} >= ${amount}`,
+          'account_transitions': 'using circuit send/receive methods'
+        }
+      });
 
       setProgressMessage('Executing circuit and generating proof...');
       
       // Generate proof
       const result = await accountSystemProver.generateProof(inputs);
+      
+      console.log('🎉 Proof generated successfully! The circuit constraints were satisfied.');
       
       // Complete progress
       clearInterval(progressInterval);
@@ -186,9 +218,12 @@ export default function AccountSystemPage() {
         <Card size="default" className="p-6">
           <div className="space-y-4">
             <Typography variant="h3">Private Account Balance</Typography>
+            <Typography variant="body-2-regular" className="ink:text-muted">
+              This represents your private DAI balance committed to a Merkle tree. In production, this would come from deposits you made to the private system.
+            </Typography>
             <div className="flex justify-between items-center">
               <Typography variant="body-1">
-                DAI Balance: <strong>{senderBalance}</strong>
+                DAI Balance: <strong>{senderBalance}</strong> (Demo)
               </Typography>
               <Button 
                 variant="secondary" 
@@ -364,8 +399,8 @@ export default function AccountSystemPage() {
 
       {/* Demo Notice */}
       <Alert
-        title="Demo Mode"
-        description="This demonstration uses mock merkle trees and generates real zero-knowledge proofs locally in your browser. No data leaves your device during proof generation."
+        title="Demo Mode - Real ZK Proofs with Mock Data"
+        description="This generates actual zero-knowledge proofs using your circuit, but with demo data: the 1000 DAI comes from a mock deposit, the Merkle tree contains only your account, and recipient addresses can be any value. In production, these would be real deposits and a global account tree."
         variant="info"
       />
     </div>
