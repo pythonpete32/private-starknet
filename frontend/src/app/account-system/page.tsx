@@ -1,14 +1,17 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Typography, Card, Input, Button, Alert } from '@inkonchain/ink-kit';
+import { Typography, Card, Input, Button, Alert, InkPageLayout } from '@inkonchain/ink-kit';
 import { createAccountSystemProver, createPedersenHasher } from '../../lib/circuits-client';
 import type { ProofResult } from '../../lib/circuits';
+import { AccountManager } from '@/components/AccountManager';
+import { AccountStorage, PrivateAccount } from '@/lib/accountStorage';
+import { AccountHelpers } from '@/lib/accountHelpers';
 
 export default function AccountSystemPage() {
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
-  const [senderBalance, setSenderBalance] = useState('1000');
+  const [selectedAccount, setSelectedAccount] = useState<PrivateAccount | null>(null);
   
   // Wallet state
   const [address, setAddress] = useState<string>('');
@@ -80,11 +83,16 @@ export default function AccountSystemPage() {
   const handleTransfer = async () => {
     if (!recipient || !amount || !isConnected) return;
     
+    if (!selectedAccount) {
+      setError('Please select an account first');
+      return;
+    }
+    
     // Validate inputs
     const transferAmount = parseFloat(amount);
-    const balance = parseFloat(senderBalance);
+    const accountBalance = parseFloat(selectedAccount.balance);
     
-    if (transferAmount <= 0 || transferAmount > balance) {
+    if (transferAmount <= 0 || transferAmount > accountBalance) {
       setError('Invalid amount or insufficient balance');
       return;
     }
@@ -111,27 +119,28 @@ export default function AccountSystemPage() {
       const hasher = await createPedersenHasher();
       setProgressMessage('Generating proof inputs...');
       
-      // Generate a deterministic secret key for demo
-      const senderSecretKey = "12345";
+      // Use selected account data
+      const senderSecretKey = selectedAccount.secretKey;
+      const assetId = selectedAccount.asset_id;
       
-      // Generate valid inputs step by step - Following MIST pattern
-      const assetId = "1";
-      
-      console.log('🔍 DEBUGGING CIRCUIT INPUTS:');
+      console.log('🔍 USING SELECTED ACCOUNT:');
       console.log('Secret Key:', senderSecretKey);
+      console.log('Selected Account:', selectedAccount);
       
-      // Calculate sender's pubkey using actual pedersen hash
-      const senderPubkey = await hasher.hashSingle(senderSecretKey);
-      console.log('Computed Pubkey:', senderPubkey);
+      // Verify pubkey matches secret key
+      const derivedPubkey = await hasher.hashSingle(senderSecretKey);
+      console.log('Expected Pubkey from secret:', derivedPubkey);
+      console.log('Account Pubkey:', selectedAccount.pubkey);
+      console.log('Pubkey match:', derivedPubkey === selectedAccount.pubkey);
       
-      // Create sender's account
+      // Create sender's account for circuit
       const senderAccount = {
-        pubkey: senderPubkey,
-        balance: senderBalance,
-        nonce: "0",
-        asset_id: assetId
+        pubkey: selectedAccount.pubkey,
+        balance: selectedAccount.balance,
+        nonce: selectedAccount.nonce,
+        asset_id: selectedAccount.asset_id
       };
-      console.log('Sender Account:', senderAccount);
+      console.log('Sender Account for circuit:', senderAccount);
       
       // Calculate sender's account commitment
       const senderCommitment = await hasher.hashQuadruple(
@@ -224,9 +233,9 @@ export default function AccountSystemPage() {
       console.log('  Circuit code: assert(sender_account.pubkey == pedersen_hash([sender_secret_key]));');
       console.log('  Input pubkey:', inputs.sender_account.pubkey);
       console.log('  Input secret:', inputs.sender_secret_key);
-      const expectedPubkeyFromSecret = await hasher.hashSingle(inputs.sender_secret_key);
-      console.log('  Expected pubkey from secret:', expectedPubkeyFromSecret);
-      console.log('  ✓ Match:', inputs.sender_account.pubkey === expectedPubkeyFromSecret);
+      const expectedPubkeyCheck = await hasher.hashSingle(inputs.sender_secret_key);
+      console.log('  Expected pubkey from secret:', expectedPubkeyCheck);
+      console.log('  ✓ Match:', inputs.sender_account.pubkey === expectedPubkeyCheck);
       
       // Constraint 2: Merkle proof verification (main.nr:159-164)
       console.log('\nCONSTRAINT 2 - Merkle Tree Verification:');
@@ -271,9 +280,18 @@ export default function AccountSystemPage() {
       setProgressMessage('Proof generated successfully!');
       setProofResult(result);
       
-      // Update balance
-      const newBalance = (parseFloat(senderBalance) - parseFloat(amount)).toString();
-      setSenderBalance(newBalance);
+      // Update account after successful transfer
+      const newBalance = (parseFloat(selectedAccount.balance) - parseFloat(amount)).toString();
+      const updatedAccount = AccountHelpers.updateAccountAfterTransfer(
+        selectedAccount,
+        newBalance
+      );
+      
+      // Save updated account to storage
+      if (address) {
+        AccountStorage.saveAccount(address, updatedAccount);
+        setSelectedAccount(updatedAccount);
+      }
       
       // Reset form
       setRecipient('');
@@ -289,7 +307,6 @@ export default function AccountSystemPage() {
   };
 
   const resetDemo = () => {
-    setSenderBalance('1000');
     setProofResult(null);
     setError('');
     setProgress(0);
@@ -300,116 +317,119 @@ export default function AccountSystemPage() {
     !recipient || 
     !amount || 
     !isConnected || 
+    !selectedAccount ||
     isGenerating ||
     isSupported === false ||
     parseFloat(amount) <= 0 ||
-    parseFloat(amount) > parseFloat(senderBalance);
+    parseFloat(amount) > parseFloat(selectedAccount?.balance || '0');
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-8">
-      {/* Header */}
-      <div className="space-y-4">
-        <Typography variant="h1">Account System</Typography>
-        <Typography variant="body-1" className="ink:text-muted">
-          Private DAI transfers using Starknet-native account abstraction with zero-knowledge proofs.
-        </Typography>
-      </div>
-
-      {/* Browser Support Check */}
-      {isSupported === false && (
-        <Alert
-          title="Browser Not Supported"
-          description="Your browser doesn't support the required WebAssembly features for proof generation."
-          variant="error"
-        />
-      )}
-
-      {/* Wallet Status */}
-      {isConnected && (
-        <Card size="default" className="p-6">
-          <div className="space-y-4">
-            <Typography variant="h3">Wallet Status</Typography>
-            <div className="ink:bg-background-light p-3 rounded">
-              <Typography variant="caption-1-bold" className="ink:text-muted">
-                Connected: {shortAddress}
-              </Typography>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Account Balance */}
-      {isConnected && (
-        <Card size="default" className="p-6">
-          <div className="space-y-4">
-            <Typography variant="h3">Private Account Balance</Typography>
-            <Typography variant="body-2-regular" className="ink:text-muted">
-              This represents your private DAI balance committed to a Merkle tree. In production, this would come from deposits you made to the private system.
-            </Typography>
-            <div className="flex justify-between items-center">
-              <Typography variant="body-1">
-                DAI Balance: <strong>{senderBalance}</strong> (Demo)
-              </Typography>
-              <Button 
-                variant="secondary" 
-                size="md"
-                onClick={resetDemo}
-                disabled={isGenerating}
-              >
-                Reset Demo
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Transfer Interface */}
-      <Card size="default" className="p-6 space-y-6">
-        <div>
-          <Typography variant="h3">Private Transfer</Typography>
-          <Typography variant="body-2-regular" className="ink:text-muted">
-            Send DAI privately using zero-knowledge proofs. Amount and recipient are hidden on-chain.
+    <InkPageLayout columns={2}>
+      {/* Left Column: Account Management */}
+      <div className="space-y-6">
+        <div className="space-y-4">
+          <Typography variant="h1">Account System</Typography>
+          <Typography variant="body-1" className="ink:text-muted">
+            Private DAI transfers using Starknet-native account abstraction with zero-knowledge proofs.
           </Typography>
         </div>
 
-        <div className="space-y-4">
-          <div>
-            <Typography variant="caption-1-bold" className="mb-2">
-              Recipient Address
+        {/* Browser Support Check */}
+        {isSupported === false && (
+          <Alert
+            title="Browser Not Supported"
+            description="Your browser doesn't support the required WebAssembly features for proof generation."
+            variant="error"
+          />
+        )}
+
+        {/* Wallet Status */}
+        {isConnected && (
+          <Card size="default" className="p-6">
+            <div className="space-y-4">
+              <Typography variant="h3">Wallet Status</Typography>
+              <div className="ink:bg-background-light p-3 rounded">
+                <Typography variant="caption-1-bold" className="ink:text-muted">
+                  Connected: {shortAddress}
+                </Typography>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Account Manager */}
+        <AccountManager onAccountSelected={setSelectedAccount} />
+      </div>
+
+      {/* Right Column: Transfer Interface */}
+      <div className="space-y-6">
+        {/* Account Selection Status */}
+        {selectedAccount ? (
+          <Card variant="light-purple" className="p-4">
+            <Typography variant="h4" className="mb-2">Selected Account</Typography>
+            <Typography variant="body-2-regular">
+              Balance: {parseFloat(selectedAccount.balance).toLocaleString()} DAI
             </Typography>
-            <Input
-              placeholder="0x... or recipient public key"
-              value={recipient}
-              onChange={(e) => setRecipient(e.target.value)}
-              disabled={!isConnected || isGenerating}
-            />
+            <Typography variant="caption-2-regular" className="ink:text-muted">
+              {selectedAccount.pubkey.slice(0, 10)}...{selectedAccount.pubkey.slice(-4)}
+            </Typography>
+          </Card>
+        ) : (
+          <Alert
+            variant="warning"
+            title="No Account Selected"
+            description="Please create and select an account to make transfers"
+          />
+        )}
+
+        {/* Transfer Interface */}
+        <Card size="default" className="p-6 space-y-6">
+          <div>
+            <Typography variant="h3">Private Transfer</Typography>
+            <Typography variant="body-2-regular" className="ink:text-muted">
+              Send DAI privately using zero-knowledge proofs. Amount and recipient are hidden on-chain.
+            </Typography>
           </div>
 
-          <div>
-            <Typography variant="caption-1-bold" className="mb-2">
-              Amount (DAI)
-            </Typography>
-            <Input
-              type="number"
-              placeholder="0.00"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              disabled={!isConnected || isGenerating}
-            />
-            {amount && parseFloat(amount) > parseFloat(senderBalance) && (
-              <Typography variant="caption-1-regular" className="ink:text-status-error">
-                Insufficient balance
+          <div className="space-y-4">
+            <div>
+              <Typography variant="caption-1-bold" className="mb-2">
+                Recipient Address
               </Typography>
-            )}
-          </div>
+              <Input
+                placeholder="0x... or recipient public key"
+                value={recipient}
+                onChange={(e) => setRecipient(e.target.value)}
+                disabled={!isConnected || isGenerating || !selectedAccount}
+              />
+            </div>
 
-          <Button 
-            variant="primary"
-            onClick={handleTransfer}
-            disabled={isTransferDisabled}
-            className="w-full"
-          >
-            {!isConnected ? 'Connect Wallet First' : 
+            <div>
+              <Typography variant="caption-1-bold" className="mb-2">
+                Amount (DAI)
+              </Typography>
+              <Input
+                type="number"
+                placeholder="0.00"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                disabled={!isConnected || isGenerating || !selectedAccount}
+              />
+              {amount && selectedAccount && parseFloat(amount) > parseFloat(selectedAccount.balance) && (
+                <Typography variant="caption-1-regular" className="ink:text-status-error">
+                  Insufficient balance
+                </Typography>
+              )}
+            </div>
+
+            <Button 
+              variant="primary"
+              onClick={handleTransfer}
+              disabled={isTransferDisabled}
+              className="w-full"
+            >
+              {!isConnected ? 'Connect Wallet First' : 
+               !selectedAccount ? 'Select Account First' : 
              isSupported === false ? 'Browser Not Supported' :
              isGenerating ? 'Generating Proof...' :
              'Generate Proof & Transfer'}
@@ -458,76 +478,77 @@ export default function AccountSystemPage() {
             variant="success"
           />
         )}
-      </Card>
+        </Card>
 
-      {/* How It Works */}
-      <Card variant="light-purple" size="default" className="p-6">
-        <div className="space-y-4">
-          <Typography variant="h4">How Account System Works</Typography>
-          <div className="space-y-2">
-            <Typography variant="body-2-regular">
-              • <strong>Zero-Knowledge Proofs:</strong> Transfer amounts and balances remain completely private
-            </Typography>
-            <Typography variant="body-2-regular">
-              • <strong>Starknet Native:</strong> Uses account abstraction for optimal gas efficiency
-            </Typography>
-            <Typography variant="body-2-regular">
-              • <strong>Anti-Rug Protection:</strong> Interactive protocol prevents malicious transfers
-            </Typography>
-            <Typography variant="body-2-regular">
-              • <strong>Merkle Tree Verification:</strong> Proves account membership without revealing balances
-            </Typography>
-          </div>
-        </div>
-      </Card>
-
-      {/* Technical Details */}
-      <Card size="default" className="p-6">
-        <div className="space-y-4">
-          <Typography variant="h4">Technical Implementation</Typography>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Typography variant="caption-1-bold" className="ink:text-muted">
-                ZK Backend
+        {/* How It Works */}
+        <Card variant="light-purple" size="default" className="p-6">
+          <div className="space-y-4">
+            <Typography variant="h4">How Account System Works</Typography>
+            <div className="space-y-2">
+              <Typography variant="body-2-regular">
+                • <strong>Zero-Knowledge Proofs:</strong> Transfer amounts and balances remain completely private
               </Typography>
               <Typography variant="body-2-regular">
-                UltraHonk (Aztec)
-              </Typography>
-            </div>
-            <div>
-              <Typography variant="caption-1-bold" className="ink:text-muted">
-                Circuit Language
+                • <strong>Starknet Native:</strong> Uses account abstraction for optimal gas efficiency
               </Typography>
               <Typography variant="body-2-regular">
-                Noir v1.0.0-beta.3
-              </Typography>
-            </div>
-            <div>
-              <Typography variant="caption-1-bold" className="ink:text-muted">
-                Proof Size
+                • <strong>Anti-Rug Protection:</strong> Interactive protocol prevents malicious transfers
               </Typography>
               <Typography variant="body-2-regular">
-                ~2KB (constant size)
-              </Typography>
-            </div>
-            <div>
-              <Typography variant="caption-1-bold" className="ink:text-muted">
-                Verification Cost
-              </Typography>
-              <Typography variant="body-2-regular">
-                ~$0.10 on Starknet
+                • <strong>Merkle Tree Verification:</strong> Proves account membership without revealing balances
               </Typography>
             </div>
           </div>
-        </div>
-      </Card>
+        </Card>
 
-      {/* Demo Notice */}
-      <Alert
-        title="Demo Mode - Real ZK Proofs with Mock Data"
-        description="This generates actual zero-knowledge proofs using your circuit, but with demo data: the 1000 DAI comes from a mock deposit, the Merkle tree contains only your account, and recipient addresses can be any value. In production, these would be real deposits and a global account tree."
-        variant="info"
-      />
-    </div>
+        {/* Technical Details */}
+        <Card size="default" className="p-6">
+          <div className="space-y-4">
+            <Typography variant="h4">Technical Implementation</Typography>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Typography variant="caption-1-bold" className="ink:text-muted">
+                  ZK Backend
+                </Typography>
+                <Typography variant="body-2-regular">
+                  UltraHonk (Aztec)
+                </Typography>
+              </div>
+              <div>
+                <Typography variant="caption-1-bold" className="ink:text-muted">
+                  Circuit Language
+                </Typography>
+                <Typography variant="body-2-regular">
+                  Noir v1.0.0-beta.3
+                </Typography>
+              </div>
+              <div>
+                <Typography variant="caption-1-bold" className="ink:text-muted">
+                  Proof Size
+                </Typography>
+                <Typography variant="body-2-regular">
+                  ~2KB (constant size)
+                </Typography>
+              </div>
+              <div>
+                <Typography variant="caption-1-bold" className="ink:text-muted">
+                  Verification Cost
+                </Typography>
+                <Typography variant="body-2-regular">
+                  ~$0.10 on Starknet
+                </Typography>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Demo Notice */}
+        <Alert
+          title="Demo Mode with Account Persistence"
+          description="This now uses real account persistence! Create accounts that survive browser refresh. Proofs use actual account data from secure storage. Ready for Phase 4 chain integration."
+          variant="info"
+        />
+      </div>
+    </InkPageLayout>
   );
 }

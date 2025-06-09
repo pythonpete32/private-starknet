@@ -8,7 +8,7 @@ import {
   SegmentedControl,
 } from "@inkonchain/ink-kit";
 import { Logo } from "./Logo";
-import { WalletConnect } from "../../components/WalletConnect";
+import { SimpleWalletButton } from "../../components/SimpleWalletButton";
 import { usePathname } from "next/navigation";
 
 interface AppShellProps {
@@ -60,14 +60,14 @@ export function AppShell({ children }: AppShellProps) {
               onOptionChange={handleNavChange}
             />
           ) : (
-            <div className="h-10 w-64 bg-gray-200 animate-pulse rounded" />
+            <div className="h-10 w-64 ink:bg-background-light animate-pulse rounded" />
           )}
         </div>
       }
-      headerContent={<WalletConnect />}
+      headerContent={<SimpleWalletButton />}
     >
       <InkPageLayout>
-        <InkPanel size="auto" className="min-h-[calc(100vh-8rem)]">
+        <InkPanel size="auto">
           {children}
         </InkPanel>
       </InkPageLayout>
