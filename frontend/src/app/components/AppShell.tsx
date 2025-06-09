@@ -8,7 +8,7 @@ import {
   SegmentedControl,
 } from "@inkonchain/ink-kit";
 import { Logo } from "./Logo";
-import { SimpleWalletButton } from "../../components/SimpleWalletButton";
+import { UnifiedWalletButton } from "../../components/UnifiedWalletButton";
 import { usePathname } from "next/navigation";
 
 interface AppShellProps {
@@ -64,7 +64,7 @@ export function AppShell({ children }: AppShellProps) {
           )}
         </div>
       }
-      headerContent={<SimpleWalletButton />}
+      headerContent={<UnifiedWalletButton />}
     >
       <InkPageLayout>
         <InkPanel size="auto">

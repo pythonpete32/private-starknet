@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { AccountStorage, PrivateAccount } from '@/lib/accountStorage';
 import { AccountHelpers } from '@/lib/accountHelpers';
-import { useWallet } from '@/hooks/useWallet';
+import { useWalletContext } from '@/app/providers';
 import { Button, Card, Typography, Alert, Modal } from '@inkonchain/ink-kit';
 
 interface AccountManagerProps {
@@ -11,7 +11,7 @@ interface AccountManagerProps {
 }
 
 export const AccountManager: React.FC<AccountManagerProps> = ({ onAccountSelected }) => {
-  const { address: walletAddress } = useWallet();
+  const { address: walletAddress } = useWalletContext();
   const [accounts, setAccounts] = useState<PrivateAccount[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<PrivateAccount | null>(null);
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);

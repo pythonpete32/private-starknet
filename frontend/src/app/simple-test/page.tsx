@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { Typography, Card, Button, Alert } from '@inkonchain/ink-kit';
-import { useWallet } from '@/hooks/useWallet';
+import { useWalletContext } from '@/app/providers';
 import { AccountStorage, PrivateAccount } from '@/lib/accountStorage';
 
 export default function SimpleTestPage() {
-  const { isConnected, address, shortAddress, connect } = useWallet();
+  const { isConnected, address, connect } = useWalletContext();
+  const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : null;
   const [accounts, setAccounts] = useState<PrivateAccount[]>([]);
   const [testResult, setTestResult] = useState<string>('');
   
