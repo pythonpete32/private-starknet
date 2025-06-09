@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Typography, Card, Input, Button, Alert } from '@inkonchain/ink-kit';
-import { WalletConnect } from '../../components/WalletConnect';
-import { accountSystemProver, CircuitUtils, type AccountSystemInputs, type ProofResult } from '../../lib/circuits';
+import { createAccountSystemProver, createPedersenHasher } from '../../lib/circuits-client';
+import type { AccountSystemInputs, ProofResult } from '../../lib/circuits';
 
 export default function AccountSystemPage() {
   const [recipient, setRecipient] = useState('');
@@ -106,20 +106,90 @@ export default function AccountSystemPage() {
         });
       }, 500);
 
-      // Initialize circuit
-      await accountSystemProver.initialize();
+      // Initialize circuit and hash utilities
+      const prover = await createAccountSystemProver();
+      const hasher = await createPedersenHasher();
       setProgressMessage('Generating proof inputs...');
       
       // Generate a deterministic secret key for demo
-      const senderSecretKey = CircuitUtils.generateSecretKey();
+      const senderSecretKey = "12345";
       
-      // Generate inputs that satisfy ALL circuit constraints
-      const inputs: AccountSystemInputs = CircuitUtils.generateValidTransferInputs(
-        senderSecretKey,
-        recipient, // recipient pubkey
-        amount,
-        senderBalance
+      // Generate valid inputs step by step
+      const assetId = "1";
+      
+      // Calculate sender's pubkey using actual pedersen hash
+      const senderPubkey = await hasher.hashSingle(senderSecretKey);
+      
+      // Create sender's account
+      const senderAccount = {
+        pubkey: senderPubkey,
+        balance: senderBalance,
+        nonce: "0",
+        asset_id: assetId
+      };
+      
+      // Calculate sender's account commitment
+      const senderCommitment = await hasher.hashQuadruple(
+        senderAccount.pubkey,
+        senderAccount.balance,
+        senderAccount.nonce,
+        senderAccount.asset_id
       );
+      
+      // Calculate nullifier
+      const nullifier = await hasher.hashDouble(senderCommitment, senderSecretKey);
+      
+      // Calculate new sender account after sending
+      const senderNewAccount = {
+        pubkey: senderAccount.pubkey,
+        balance: (BigInt(senderAccount.balance) - BigInt(amount)).toString(),
+        nonce: (BigInt(senderAccount.nonce) + BigInt(1)).toString(),
+        asset_id: senderAccount.asset_id
+      };
+      
+      const senderNewCommitment = await hasher.hashQuadruple(
+        senderNewAccount.pubkey,
+        senderNewAccount.balance,
+        senderNewAccount.nonce,
+        senderNewAccount.asset_id
+      );
+      
+      // For recipient, create a simple account and commitment
+      const recipientOldBalance = "0";
+      const recipientOldNonce = "0";
+      const recipientNewAccount = {
+        pubkey: recipient,
+        balance: (BigInt(recipientOldBalance) + BigInt(amount)).toString(),
+        nonce: (BigInt(recipientOldNonce) + BigInt(1)).toString(),
+        asset_id: assetId
+      };
+      
+      const recipientNewCommitment = await hasher.hashQuadruple(
+        recipientNewAccount.pubkey,
+        recipientNewAccount.balance,
+        recipientNewAccount.nonce,
+        recipientNewAccount.asset_id
+      );
+      
+      const inputs: AccountSystemInputs = {
+        // Public inputs
+        merkle_root: senderCommitment, // Single leaf tree
+        sender_nullifier: nullifier,
+        sender_new_commitment: senderNewCommitment,
+        recipient_new_commitment: recipientNewCommitment,
+        asset_id: assetId,
+        
+        // Private inputs
+        sender_account: senderAccount,
+        sender_secret_key: senderSecretKey,
+        transfer_amount: amount,
+        recipient_pubkey: recipient,
+        recipient_old_balance: recipientOldBalance,
+        recipient_old_nonce: recipientOldNonce,
+        sender_new_account: senderNewAccount,
+        sender_merkle_path: Array(20).fill("0"),
+        sender_merkle_indices: Array(20).fill("0")
+      };
 
       console.log('🔍 Generated inputs that should satisfy ALL circuit constraints:', {
         ...inputs,
@@ -135,7 +205,7 @@ export default function AccountSystemPage() {
       setProgressMessage('Executing circuit and generating proof...');
       
       // Generate proof
-      const result = await accountSystemProver.generateProof(inputs);
+      const result = await prover.generateProof(inputs);
       
       console.log('🎉 Proof generated successfully! The circuit constraints were satisfied.');
       
@@ -146,6 +216,7 @@ export default function AccountSystemPage() {
       setProofResult(result);
       
       // Update balance
+      const newBalance = (parseFloat(senderBalance) - parseFloat(amount)).toString();
       setSenderBalance(newBalance);
       
       // Reset form
@@ -197,21 +268,19 @@ export default function AccountSystemPage() {
         />
       )}
 
-      {/* Wallet Connection */}
-      <Card size="default" className="p-6">
-        <div className="space-y-4">
-          <Typography variant="h3">Wallet Connection</Typography>
-          <WalletConnect />
-          
-          {isConnected && (
+      {/* Wallet Status */}
+      {isConnected && (
+        <Card size="default" className="p-6">
+          <div className="space-y-4">
+            <Typography variant="h3">Wallet Status</Typography>
             <div className="ink:bg-background-light p-3 rounded">
               <Typography variant="caption-1-bold" className="ink:text-muted">
                 Connected: {shortAddress}
               </Typography>
             </div>
-          )}
-        </div>
-      </Card>
+          </div>
+        </Card>
+      )}
 
       {/* Account Balance */}
       {isConnected && (

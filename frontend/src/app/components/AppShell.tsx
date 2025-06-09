@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   InkLayout,
   InkPageLayout,
@@ -7,7 +8,7 @@ import {
   SegmentedControl,
 } from "@inkonchain/ink-kit";
 import { Logo } from "./Logo";
-import { WalletDropdown } from "./WalletDropdown";
+import { WalletConnect } from "../../components/WalletConnect";
 import { usePathname } from "next/navigation";
 
 interface AppShellProps {
@@ -16,6 +17,12 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
+  const [isClient, setIsClient] = useState(false);
+
+  // Ensure client-side rendering for ink-kit components
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const navOptions = [
     {
@@ -47,13 +54,17 @@ export function AppShell({ children }: AppShellProps) {
       mainIcon={<Logo />}
       topNavigation={
         <div className="flex items-center justify-center w-full">
-          <SegmentedControl
-            options={navOptions}
-            onOptionChange={handleNavChange}
-          />
+          {isClient ? (
+            <SegmentedControl
+              options={navOptions}
+              onOptionChange={handleNavChange}
+            />
+          ) : (
+            <div className="h-10 w-64 bg-gray-200 animate-pulse rounded" />
+          )}
         </div>
       }
-      headerContent={<WalletDropdown />}
+      headerContent={<WalletConnect />}
     >
       <InkPageLayout>
         <InkPanel size="auto" className="min-h-[calc(100vh-8rem)]">

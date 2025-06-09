@@ -51,17 +51,29 @@ export function WalletConnect() {
     setIsConnecting(true);
     
     try {
-      // Configure connectors with proper order
+      // Configure all available Starknet wallet connectors
       const connectors = [
+        // Popular browser extension wallets
         new InjectedConnector({
           options: { id: "argentX", name: "Argent X" },
         }),
         new InjectedConnector({
           options: { id: "braavos", name: "Braavos" },
         }),
+        // Keplr wallet (now supports Starknet)
+        new InjectedConnector({
+          options: { id: "keplr", name: "Keplr" },
+        }),
+        // MetaMask with Starknet Snap
+        new InjectedConnector({
+          options: { id: "metamask", name: "MetaMask Snap" },
+        }),
+        // Additional wallets
+        new InjectedConnector({
+          options: { id: "okxwallet", name: "OKX Wallet" },
+        }),
+        // Web-based wallet
         new WebWalletConnector({ url: "https://web.argent.xyz" }),
-        // Note: Keplr and MetaMask are not Starknet wallets
-        // StarknetKit supports Argent X, Braavos, and Argent Web Wallet
       ];
 
       const { wallet, connectorData } = await connect({
@@ -126,7 +138,7 @@ export function WalletConnect() {
           {isConnecting ? 'Connecting...' : 'Connect Starknet Wallet'}
         </Button>
         <Typography variant="caption-1-regular" className="text-center ink:text-muted">
-          Supports ArgentX, Braavos, and Argent Web Wallet
+          Supports ArgentX, Braavos, Keplr, MetaMask Snap, OKX, and Argent Web Wallet
         </Typography>
       </Card>
     );

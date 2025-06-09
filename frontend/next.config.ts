@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
   
   reactStrictMode: false, // NoirJS compatibility
   
+  
   webpack: (config, { isServer }) => {
     // Disable fs fallback for client-side (Noir requirement)
     config.resolve.fallback = { 
@@ -39,7 +40,10 @@ const nextConfig: NextConfig = {
       config.externals = config.externals || [];
       config.externals.push({
         '../circuits/account_system.json': 'commonjs ../circuits/account_system.json',
-        '../circuits/commitment_system.json': 'commonjs ../circuits/commitment_system.json'
+        '../circuits/commitment_system.json': 'commonjs ../circuits/commitment_system.json',
+        '../circuits/pedersen_hash.json': 'commonjs ../circuits/pedersen_hash.json',
+        '../circuits/pedersen_hash_multi.json': 'commonjs ../circuits/pedersen_hash_multi.json',
+        './circuits': 'commonjs ./circuits'
       });
     }
     

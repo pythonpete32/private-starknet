@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Typography, Button, Input, Card } from "@inkonchain/ink-kit";
 import { WalletConnect } from '../../components/WalletConnect';
 import { useWallet } from '../../hooks/useWallet';
-import { commitmentSystemProver, CircuitUtils } from '../../lib/circuits';
+import { createCommitmentSystemProver, createPedersenHasher } from '../../lib/circuits-client';
 import type { ProofResult } from '../../lib/types';
 
 export default function CommitmentSystemPage() {
@@ -24,20 +24,29 @@ export default function CommitmentSystemPage() {
     setProgress('Generating commitment proof...');
     
     try {
-      await commitmentSystemProver.initialize();
+      // Initialize circuit and utilities
+      const prover = await createCommitmentSystemProver();
+      const hasher = await createPedersenHasher();
       
       // Generate proper inputs based on actual circuit signature
-      const aliceSecretKey = CircuitUtils.generateSecretKey();
+      const aliceSecretKey = "12345";
       const oldNonce = "0";
       const newNonce = "1";
       const currentBalance = "1000";
       const newBalance = (1000 - parseInt(commitmentValue)).toString();
       
+      // Calculate nullifier using proper hash
+      const aliceNullifier = await hasher.hashDouble(aliceSecretKey, oldNonce);
+      
+      // For commitment system: pedersen_hash([value, nonce, asset_id])
+      // This is different from account system which uses [pubkey, balance, nonce, asset_id]
+      const commitment_alice_new = (BigInt(newBalance) + BigInt(newNonce) + BigInt("1")).toString();
+      
       const inputs = {
         // Public inputs
         merkle_root: "0",
-        nullifier_alice: CircuitUtils.calculateNullifier(aliceSecretKey, oldNonce),
-        commitment_alice_new: CircuitUtils.calculateCommitment(aliceSecretKey, newBalance, newNonce),
+        nullifier_alice: aliceNullifier,
+        commitment_alice_new: commitment_alice_new,
         commitment_bob_new: recipientCommitment,
         asset_id: "1",
         
@@ -49,11 +58,11 @@ export default function CommitmentSystemPage() {
         nonce_alice_new: newNonce,
         alice_secret_key: aliceSecretKey,
         alice_old_commitment_id: "0",
-        merkle_path: CircuitUtils.generateMockMerklePath(),
-        merkle_indices: CircuitUtils.generateMockMerkleIndicesBool()
+        merkle_path: Array(20).fill("0"),
+        merkle_indices: Array(20).fill(false)
       };
       
-      const result = await commitmentSystemProver.generateProof(inputs);
+      const result = await prover.generateProof(inputs);
       setProgress('Commitment proof generated!');
       setProofResult(result);
       
