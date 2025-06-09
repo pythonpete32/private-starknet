@@ -1,5 +1,6 @@
 venv
 worktrees
+.worktrees
 
 # MCP configuration (contains API keys)
 .mcp.json

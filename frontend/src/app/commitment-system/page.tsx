@@ -1,171 +1,155 @@
-import { Card, Typography, Button, Input } from "@inkonchain/ink-kit";
+'use client';
+
+import { useState } from "react";
+import { Typography, Button, Input } from "@inkonchain/ink-kit";
+import { WalletConnect } from '../../components/WalletConnect';
+import { useWallet } from '../../hooks/useWallet';
+import { CircuitManager } from '../../lib/circuits';
+import type { CommitmentSystemInputs, ProofResult } from '../../lib/types';
 
 export default function CommitmentSystemPage() {
+  const { isConnected, address, shortAddress } = useWallet();
+  const [commitmentValue, setCommitmentValue] = useState('');
+  const [recipientCommitment, setRecipientCommitment] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [progress, setProgress] = useState('');
+  const [proofResult, setProofResult] = useState<ProofResult | null>(null);
+  const [error, setError] = useState('');
+
+  const handleGenerateProof = async () => {
+    if (!isConnected || !commitmentValue || !recipientCommitment) return;
+    
+    setIsGenerating(true);
+    setError('');
+    setProgress('Generating commitment proof...');
+    
+    try {
+      const prover = await CircuitManager.getCommitmentSystemProver();
+      
+      // Generate mock inputs for demonstration
+      const inputs: CommitmentSystemInputs = {
+        sender_value: commitmentValue,
+        sender_nonce: Math.random().toString(),
+        sender_asset_id: "1",
+        recipient_value: commitmentValue,
+        recipient_nonce: recipientCommitment,
+        recipient_asset_id: "1",
+        transfer_amount: commitmentValue,
+        sender_merkle_path: new Array(20).fill("0"),
+        merkle_root: "0",
+        nullifier: "0",
+        new_sender_commitment: "0",
+        new_recipient_commitment: "0"
+      };
+      
+      const result = await prover.generateProof(inputs);
+      setProgress('Commitment proof generated!');
+      setProofResult(result);
+      
+    } catch (err: any) {
+      console.error('Commitment proof generation failed:', err);
+      setError(`Failed to generate proof: ${err.message}`);
+      setProgress('');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const canGenerateProof = isConnected && commitmentValue && recipientCommitment && !isGenerating;
+
   return (
-    <div className="ink:max-w-6xl ink:mx-auto ink:p-6 ink:space-y-8">
-      <div className="ink:space-y-4">
-        <Typography variant="h1">
-          Commitment System
+    <div className="ink:min-h-screen ink:flex ink:flex-col ink:justify-center ink:max-w-md ink:mx-auto ink:px-6">
+      {/* Header */}
+      <div className="ink:text-center ink:mb-8">
+        <Typography variant="h1" className="ink:mb-2">
+          Private Commitments
         </Typography>
-        <Typography variant="subtitle-1" className="ink:text-muted">
-          Maximum privacy implementation with complete unlinkability inspired by Bitcoin/Zcash
+        <Typography variant="body-1" className="ink:text-muted">
+          Maximum Privacy System
         </Typography>
       </div>
 
-      <div className="ink:grid ink:grid-cols-1 lg:ink:grid-cols-2 ink:gap-6">
-        <div className="ink:space-y-6">
-          <Card className="ink:p-6 ink:space-y-4">
-            <Typography variant="h3">
-              System Overview
-            </Typography>
-            <div className="ink:space-y-3">
-              <div>
-                <Typography variant="body-1" className="ink:font-medium">Privacy Level</Typography>
-                <Typography variant="body-2" className="ink:text-muted">
-                  Complete unlinkability, maximum privacy guarantees
-                </Typography>
-              </div>
-              <div>
-                <Typography variant="body-1" className="ink:font-medium">Efficiency</Typography>
-                <Typography variant="body-2" className="ink:text-muted">
-                  Higher overhead but stronger privacy
-                </Typography>
-              </div>
-              <div>
-                <Typography variant="body-1" className="ink:font-medium">Model</Typography>
-                <Typography variant="body-2" className="ink:text-muted">
-                  UTXO-style ephemeral commitments
-                </Typography>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="ink:p-6 ink:space-y-4">
-            <Typography variant="h3">
-              Technical Details
-            </Typography>
-            <div className="ink:space-y-2">
-              <Typography variant="body-2">
-                • UTXO-based commitment model
-              </Typography>
-              <Typography variant="body-2">
-                • Merkle tree inclusion proofs
-              </Typography>
-              <Typography variant="body-2">
-                • Ephemeral commitment generation
-              </Typography>
-              <Typography variant="body-2">
-                • Maximum unlinkability guarantees
-              </Typography>
-            </div>
-          </Card>
+      {/* Wallet Connection */}
+      {!isConnected ? (
+        <div className="ink:mb-8">
+          <WalletConnect />
         </div>
+      ) : (
+        <div className="ink:text-center ink:mb-6">
+          <Typography variant="body-2" className="ink:text-muted">
+            Connected: {shortAddress}
+          </Typography>
+        </div>
+      )}
 
+      {/* Commitment Form */}
+      {isConnected && (
         <div className="ink:space-y-6">
-          <Card className="ink:p-6 ink:space-y-4">
-            <Typography variant="h3">
-              Commitment Interface
+          <div>
+            <Typography variant="body-2" className="ink:font-medium ink:mb-2">
+              Amount (DAI)
             </Typography>
-            <div className="ink:space-y-4">
-              <div>
-                <Typography variant="body-2" className="ink:font-medium ink:mb-2">
-                  New Commitment Value
-                </Typography>
-                <Input 
-                  placeholder="Enter DAI amount for commitment"
-                  disabled
-                  variant="secondary"
-                />
-              </div>
-              <div>
-                <Typography variant="body-2" className="ink:font-medium ink:mb-2">
-                  Recipient Commitment
-                </Typography>
-                <Input 
-                  placeholder="Paste recipient's commitment hash"
-                  disabled
-                  variant="secondary"
-                />
-              </div>
-              <Button variant="primary" className="ink:w-full" disabled>
-                Generate Private Commitment
+            <Input 
+              placeholder="0.00"
+              disabled={isGenerating}
+              value={commitmentValue}
+              onChange={(e) => setCommitmentValue(e.target.value)}
+              type="number"
+            />
+          </div>
+          
+          <div>
+            <Typography variant="body-2" className="ink:font-medium ink:mb-2">
+              Recipient Commitment Hash
+            </Typography>
+            <Input 
+              placeholder="0x..."
+              disabled={isGenerating}
+              value={recipientCommitment}
+              onChange={(e) => setRecipientCommitment(e.target.value)}
+            />
+          </div>
+          
+          <Button 
+            variant="primary" 
+            className="ink:w-full ink:py-4"
+            disabled={!canGenerateProof}
+            onClick={handleGenerateProof}
+          >
+            {isGenerating ? 'Generating...' : 'Create Commitment'}
+          </Button>
+          
+          {progress && (
+            <div className="ink:text-center">
+              <Typography variant="body-2" className="ink:text-accent">
+                {progress}
+              </Typography>
+            </div>
+          )}
+          
+          {error && (
+            <div className="ink:text-center">
+              <Typography variant="body-2" className="ink:text-status-error">
+                {error}
+              </Typography>
+            </div>
+          )}
+
+          {proofResult && (
+            <div className="ink:text-center ink:space-y-4 ink:pt-6">
+              <Typography variant="h3" className="ink:text-accent">
+                ✓ Commitment Ready
+              </Typography>
+              <Typography variant="body-2" className="ink:text-muted">
+                Maximum privacy proof generated
+              </Typography>
+              <Button variant="secondary" className="ink:w-full">
+                Submit to Network
               </Button>
             </div>
-          </Card>
-
-          <Card className="ink:p-6 ink:space-y-4">
-            <Typography variant="h3">
-              Merkle Tree Status
-            </Typography>
-            <div className="ink:space-y-2">
-              <div className="ink:flex ink:justify-between">
-                <Typography variant="body-2">Tree Root:</Typography>
-                <Typography variant="body-2" className="ink:font-mono">0x--...--</Typography>
-              </div>
-              <div className="ink:flex ink:justify-between">
-                <Typography variant="body-2">Total Commitments:</Typography>
-                <Typography variant="body-2" className="ink:font-mono">---</Typography>
-              </div>
-              <div className="ink:flex ink:justify-between">
-                <Typography variant="body-2">Tree Depth:</Typography>
-                <Typography variant="body-2" className="ink:font-mono">20</Typography>
-              </div>
-            </div>
-          </Card>
+          )}
         </div>
-      </div>
-
-      <Card className="ink:p-6">
-        <Typography variant="h3" className="ink:mb-4">
-          How It Works
-        </Typography>
-        <div className="ink:grid ink:grid-cols-1 md:ink:grid-cols-4 ink:gap-6">
-          <div className="ink:space-y-2">
-            <Typography variant="body-1" className="ink:font-medium">1. Commitment Creation</Typography>
-            <Typography variant="body-2" className="ink:text-muted">
-              Generate ephemeral commitment with secret value and randomness
-            </Typography>
-          </div>
-          <div className="ink:space-y-2">
-            <Typography variant="body-1" className="ink:font-medium">2. Tree Inclusion</Typography>
-            <Typography variant="body-2" className="ink:text-muted">
-              Add commitment to global Merkle tree for verification
-            </Typography>
-          </div>
-          <div className="ink:space-y-2">
-            <Typography variant="body-1" className="ink:font-medium">3. Transfer Proof</Typography>
-            <Typography variant="body-2" className="ink:text-muted">
-              Prove knowledge of commitment without revealing details
-            </Typography>
-          </div>
-          <div className="ink:space-y-2">
-            <Typography variant="body-1" className="ink:font-medium">4. Nullifier</Typography>
-            <Typography variant="body-2" className="ink:text-muted">
-              Generate unique nullifier to prevent double-spending
-            </Typography>
-          </div>
-        </div>
-      </Card>
-
-      <Card className="ink:p-6">
-        <Typography variant="h3" className="ink:mb-4">
-          Privacy Advantages
-        </Typography>
-        <div className="ink:grid ink:grid-cols-1 md:ink:grid-cols-2 ink:gap-6">
-          <div className="ink:space-y-3">
-            <Typography variant="body-1" className="ink:font-medium">Complete Unlinkability</Typography>
-            <Typography variant="body-2" className="ink:text-muted">
-              No connection between sender and recipient addresses, amounts, or timing
-            </Typography>
-          </div>
-          <div className="ink:space-y-3">
-            <Typography variant="body-1" className="ink:font-medium">Anonymous Set</Typography>
-            <Typography variant="body-2" className="ink:text-muted">
-              Each transaction hides among all previous commitments in the tree
-            </Typography>
-          </div>
-        </div>
-      </Card>
+      )}
     </div>
   );
 }

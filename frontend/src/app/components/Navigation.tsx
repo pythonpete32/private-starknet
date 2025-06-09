@@ -14,12 +14,12 @@ export function Navigation() {
   ];
 
   return (
-    <nav className="flex flex-col gap-2 p-4">
+    <nav className="ink:flex ink:flex-col ink:gap-3 ink:p-6">
       {navItems.map((item) => (
         <Link key={item.href} href={item.href}>
           <Button 
-            variant={pathname === item.href ? "primary" : "transparent"}
-            className="w-full justify-start"
+            variant={pathname === item.href ? "primary" : "secondary"}
+            className="ink:w-full ink:justify-start ink:py-3 ink:text-sm"
           >
             {item.label}
           </Button>

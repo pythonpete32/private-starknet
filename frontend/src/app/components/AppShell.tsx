@@ -15,7 +15,9 @@ export function AppShell({ children }: AppShellProps) {
       sideNavigation={<Navigation />}
       mobileNavigation={<Navigation />}
     >
-      {children}
+      <div className="min-h-[80vh] flex flex-col justify-center max-w-5xl mx-auto px-8">
+        {children}
+      </div>
     </InkLayout>
   );
 }
