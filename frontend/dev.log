@@ -4,64 +4,18 @@ $ next dev
    - Network:      http://192.168.100.103:3000
 
  ✓ Starting...
- ✓ Ready in 1836ms
+ ✓ Ready in 1792ms
  ○ Compiling / ...
- ✓ Compiled / in 4s (3318 modules)
- GET / 200 in 4469ms
- ○ Compiling /favicon.ico ...
- ✓ Compiled /favicon.ico in 993ms (1744 modules)
- GET /favicon.ico 200 in 1087ms
- GET / 200 in 208ms
- GET / 200 in 83ms
- GET /favicon.ico 200 in 11ms
+ ✓ Compiled / in 2.8s (3324 modules)
+ GET / 200 in 3148ms
+ GET / 200 in 73ms
+ ✓ Compiled /favicon.ico in 351ms (1754 modules)
+ GET /favicon.ico 200 in 434ms
  ○ Compiling /account-system ...
- ✓ Compiled /account-system in 650ms (3339 modules)
- GET /account-system 200 in 762ms
- GET / 200 in 25ms
- GET /account-system 200 in 19ms
+ ✓ Compiled /account-system in 1791ms (3685 modules)
+ GET /account-system 200 in 1923ms
+ GET /account-system 200 in 13ms
  ○ Compiling /commitment-system ...
- ✓ Compiled /commitment-system in 513ms (3327 modules)
- GET /commitment-system 200 in 605ms
- ✓ Compiled in 695ms (3325 modules)
- GET /commitment-system 200 in 117ms
- ✓ Compiled in 765ms (3325 modules)
- GET /commitment-system 200 in 97ms
- ✓ Compiled in 1252ms (3325 modules)
- GET /commitment-system 200 in 70ms
- ✓ Compiled in 559ms (3325 modules)
- GET /commitment-system 200 in 54ms
- ✓ Compiled in 649ms (3325 modules)
- GET /commitment-system 200 in 53ms
- ✓ Compiled in 648ms (3325 modules)
- GET /commitment-system 200 in 54ms
- ✓ Compiled in 505ms (3325 modules)
- GET /commitment-system 200 in 68ms
- ✓ Compiled in 635ms (3325 modules)
- GET /commitment-system 200 in 52ms
- ✓ Compiled in 542ms (3325 modules)
- GET /commitment-system 200 in 68ms
- ✓ Compiled in 888ms (3328 modules)
- GET /commitment-system 200 in 56ms
- ✓ Compiled in 709ms (3325 modules)
- GET /commitment-system 200 in 57ms
- ✓ Compiled in 514ms (3325 modules)
- GET /commitment-system 200 in 75ms
- GET / 200 in 369ms
- GET / 200 in 127ms
- ✓ Compiled /favicon.ico in 483ms (1750 modules)
- GET /favicon.ico 200 in 648ms
- GET /favicon.ico 200 in 6ms
- GET /account-system 200 in 91ms
- GET /account-system 200 in 24ms
- GET /commitment-system 200 in 21ms
- GET /account-system 200 in 282ms
- GET /commitment-system 200 in 140ms
- ✓ Compiled in 718ms (1591 modules)
- GET /commitment-system 200 in 23ms
- ✓ Compiled in 358ms (1591 modules)
- GET /commitment-system 200 in 24ms
- GET / 200 in 114ms
- GET /favicon.ico 200 in 121ms
- GET /account-system 200 in 78ms
- GET /commitment-system 200 in 29ms
- GET / 200 in 37ms
+ ✓ Compiled /commitment-system in 928ms (3662 modules)
+ GET /commitment-system 200 in 1418ms
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload

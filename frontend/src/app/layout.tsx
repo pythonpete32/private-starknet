@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
-import { InkLayout } from "@inkonchain/ink-kit";
-import { AppShell } from "./components/AppShell";
 import "./globals.css";
+
+import { AppShell } from "./components/AppShell";
+
+import Providers from "./providers";
 
 export const metadata: Metadata = {
   title: "Private DAI Transfer",
@@ -14,11 +16,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="ink:light-theme">
+    <html lang="en" className="ink:neo-theme" suppressHydrationWarning>
       <body>
-        <AppShell>
-          {children}
-        </AppShell>
+        <Providers>
+          <AppShell>{children}</AppShell>
+        </Providers>
       </body>
     </html>
   );

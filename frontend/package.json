@@ -9,10 +9,15 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@aztec/bb.js": "0.85.0",
     "@inkonchain/ink-kit": "^0.9.1-beta.19",
+    "@noir-lang/noir_js": "1.0.0-beta.3",
     "next": "15.3.3",
+    "next-themes": "^0.4.6",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "starknet": "^6.15.0",
+    "starknetkit": "2.10.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
