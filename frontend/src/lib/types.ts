@@ -66,3 +66,26 @@ export interface ProofGenerationProgress {
 }
 
 export type CircuitType = 'account' | 'commitment';
+
+// Merkle tree types
+export interface MerkleNode {
+  hash: string;
+  left?: MerkleNode;
+  right?: MerkleNode;
+  isLeaf: boolean;
+  data?: any;
+}
+
+export interface MerkleProof {
+  leaf: string;
+  path: string[];
+  indices: number[];
+  root: string;
+}
+
+export interface TreeAccount {
+  commitment: string;
+  account: PrivateAccountState['accounts'][0] & { created: number };
+  walletAddress: string;
+  addedAt: number;
+}

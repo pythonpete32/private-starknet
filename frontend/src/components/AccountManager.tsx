@@ -3,14 +3,16 @@
 import React, { useState, useEffect } from 'react';
 import { AccountStorage, PrivateAccount } from '@/lib/accountStorage';
 import { AccountHelpers } from '@/lib/accountHelpers';
+import { DemoMerkleTreeManager } from '@/lib/treeManager';
 import { useWalletContext } from '@/app/providers';
 import { Button, Card, Typography, Alert, Modal } from '@inkonchain/ink-kit';
 
 interface AccountManagerProps {
   onAccountSelected?: (account: PrivateAccount | null) => void;
+  treeManager?: DemoMerkleTreeManager;
 }
 
-export const AccountManager: React.FC<AccountManagerProps> = ({ onAccountSelected }) => {
+export const AccountManager: React.FC<AccountManagerProps> = ({ onAccountSelected, treeManager }) => {
   const { address: walletAddress } = useWalletContext();
   const [accounts, setAccounts] = useState<PrivateAccount[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<PrivateAccount | null>(null);
@@ -51,7 +53,7 @@ export const AccountManager: React.FC<AccountManagerProps> = ({ onAccountSelecte
     onAccountSelected?.(account);
   };
   
-  // Step 3.2: Create new account
+  // Step 3.2: Create new account (with tree integration)
   const handleCreateAccount = async () => {
     if (!walletAddress) return;
     
@@ -59,6 +61,17 @@ export const AccountManager: React.FC<AccountManagerProps> = ({ onAccountSelecte
     try {
       const newAccount = await AccountHelpers.createAccount("1");
       AccountStorage.saveAccount(walletAddress, newAccount);
+      
+      // Add to tree if available
+      if (treeManager) {
+        await treeManager.addAccount(newAccount, walletAddress);
+        console.log('✅ Account added to tree:', {
+          pubkey: newAccount.pubkey.slice(0, 10) + '...',
+          balance: newAccount.balance,
+          treeStats: treeManager.getStats()
+        });
+      }
+      
       loadAccounts();
       handleAccountSelect(newAccount);
     } catch (error) {
@@ -68,21 +81,40 @@ export const AccountManager: React.FC<AccountManagerProps> = ({ onAccountSelecte
     }
   };
   
-  // Step 3.3: Delete account
-  const handleDeleteAccount = (pubkey: string) => {
+  // Step 3.3: Delete account (with tree integration)
+  const handleDeleteAccount = async (pubkey: string) => {
     if (!walletAddress) return;
     
-    AccountStorage.deleteAccount(walletAddress, pubkey);
-    loadAccounts();
-    
-    if (selectedAccount?.pubkey === pubkey) {
-      const remainingAccounts = AccountStorage.listAccounts(walletAddress);
-      const newSelected = remainingAccounts[0] || null;
-      setSelectedAccount(newSelected);
-      onAccountSelected?.(newSelected);
+    try {
+      // Find the account to delete
+      const accountToDelete = accounts.find(a => a.pubkey === pubkey);
+      
+      // Remove from storage
+      AccountStorage.deleteAccount(walletAddress, pubkey);
+      
+      // Remove from tree if available
+      if (treeManager && accountToDelete) {
+        await treeManager.removeAccount(accountToDelete);
+        console.log('✅ Account removed from tree:', {
+          pubkey: accountToDelete.pubkey.slice(0, 10) + '...',
+          remainingStats: treeManager.getStats()
+        });
+      }
+      
+      loadAccounts();
+      
+      if (selectedAccount?.pubkey === pubkey) {
+        const remainingAccounts = AccountStorage.listAccounts(walletAddress);
+        const newSelected = remainingAccounts[0] || null;
+        setSelectedAccount(newSelected);
+        onAccountSelected?.(newSelected);
+      }
+      
+      setShowDeleteModal(null);
+    } catch (error) {
+      console.error('Failed to delete account:', error);
+      setShowDeleteModal(null);
     }
-    
-    setShowDeleteModal(null);
   };
 
   // Format balance for display

@@ -5,18 +5,24 @@ import { Typography, Card, Input, Button, Alert, InkPageLayout } from '@inkoncha
 import { createAccountSystemProver, createPedersenHasher } from '../../lib/circuits-client';
 import type { ProofResult } from '../../lib/circuits';
 import { AccountManager } from '@/components/AccountManager';
+import { TreeViewer } from '@/components/TreeViewer';
 import { AccountStorage, PrivateAccount } from '@/lib/accountStorage';
 import { AccountHelpers } from '@/lib/accountHelpers';
+import { DemoMerkleTreeManager } from '@/lib/treeManager';
+import { useWalletContext } from '@/app/providers';
 
 export default function AccountSystemPage() {
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
   const [selectedAccount, setSelectedAccount] = useState<PrivateAccount | null>(null);
   
-  // Wallet state
-  const [address, setAddress] = useState<string>('');
-  const [isConnected, setIsConnected] = useState(false);
-  const [shortAddress, setShortAddress] = useState<string>('');
+  // Use unified wallet system
+  const { address, isConnected } = useWalletContext();
+  const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : '';
+  
+  // Tree manager instance
+  const [treeManager] = useState(() => new DemoMerkleTreeManager());
+  const [activeTab, setActiveTab] = useState<'transfer' | 'tree'>('transfer');
   
   // Proof generation state
   const [isGenerating, setIsGenerating] = useState(false);
@@ -27,40 +33,6 @@ export default function AccountSystemPage() {
   
   // Browser support check
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
-
-  // Listen for wallet connection events
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const handleWalletConnected = (event: any) => {
-      const walletAddress = event.detail?.address || '';
-      setAddress(walletAddress);
-      setIsConnected(true);
-      setShortAddress(walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : '');
-    };
-    
-    const handleWalletDisconnected = () => {
-      setAddress('');
-      setIsConnected(false);
-      setShortAddress('');
-    };
-
-    // Check if already connected
-    const storedAddress = localStorage.getItem('wallet_address');
-    if (storedAddress) {
-      setAddress(storedAddress);
-      setIsConnected(true);
-      setShortAddress(`${storedAddress.slice(0, 6)}...${storedAddress.slice(-4)}`);
-    }
-
-    window.addEventListener('walletConnected', handleWalletConnected);
-    window.addEventListener('walletDisconnected', handleWalletDisconnected);
-
-    return () => {
-      window.removeEventListener('walletConnected', handleWalletConnected);
-      window.removeEventListener('walletDisconnected', handleWalletDisconnected);
-    };
-  }, []);
 
   // Check browser support on mount
   useEffect(() => {
@@ -77,6 +49,24 @@ export default function AccountSystemPage() {
       setIsSupported(true);
     } catch (err) {
       setIsSupported(false);
+    }
+  };
+  
+  // Handle account selection and ensure account is in tree
+  const handleAccountSelected = async (account: PrivateAccount | null) => {
+    setSelectedAccount(account);
+    
+    if (account && address) {
+      // Ensure account is in tree
+      const isInTree = await treeManager.hasAccount(account);
+      if (!isInTree) {
+        await treeManager.addAccount(account, address);
+        console.log('✅ Added existing account to tree:', {
+          pubkey: account.pubkey.slice(0, 10) + '...',
+          balance: account.balance,
+          treeStats: treeManager.getStats()
+        });
+      }
     }
   };
 
@@ -155,7 +145,7 @@ export default function AccountSystemPage() {
       // This is the constraint that's failing - let's test it explicitly
       const expectedPubkey = await hasher.hashSingle(senderSecretKey);
       console.log('Expected Pubkey:', expectedPubkey);
-      console.log('Pubkey Match:', senderPubkey === expectedPubkey);
+      console.log('Pubkey Match:', selectedAccount.pubkey === expectedPubkey);
       
       // Calculate nullifier
       const nullifier = await hasher.hashDouble(senderCommitment, senderSecretKey);
@@ -192,10 +182,26 @@ export default function AccountSystemPage() {
         recipientNewAccount.asset_id
       );
       
+      // Generate real merkle proof from tree
+      setProgressMessage('Generating merkle proof...');
+      const merkleProof = await treeManager.generateProof(selectedAccount);
+      
+      if (!merkleProof) {
+        throw new Error('Failed to generate merkle proof. Account may not be in tree.');
+      }
+      
+      console.log('🌳 MERKLE PROOF GENERATED:', {
+        leaf: merkleProof.leaf.slice(0, 10) + '...',
+        root: merkleProof.root.slice(0, 10) + '...',
+        pathLength: merkleProof.path.length,
+        indicesLength: merkleProof.indices.length,
+        isRealProof: merkleProof.path.some(p => p !== "0") || merkleProof.indices.some(i => i !== 0)
+      });
+      
       // CRITICAL FIX: Circuit expects structured inputs matching Account struct and array formats
       const inputs = {
         // Public inputs (circuit main function parameters)
-        merkle_root: senderCommitment,
+        merkle_root: merkleProof.root,
         sender_nullifier: nullifier,
         sender_new_commitment: senderNewCommitment,
         recipient_new_commitment: recipientNewCommitment,
@@ -219,9 +225,9 @@ export default function AccountSystemPage() {
           nonce: senderNewAccount.nonce,
           asset_id: senderNewAccount.asset_id
         },
-        // Arrays must be exactly 20 elements for MERKLE_DEPTH
-        sender_merkle_path: Array(20).fill("0"),
-        sender_merkle_indices: Array(20).fill("0")
+        // Get real merkle proof from tree
+        sender_merkle_path: merkleProof.path,
+        sender_merkle_indices: merkleProof.indices
       };
 
       // DETAILED CONSTRAINT VALIDATION LOGGING
@@ -242,9 +248,11 @@ export default function AccountSystemPage() {
       console.log('  Circuit: verify_merkle_proof(sender_commitment, merkle_root, path, indices)');
       console.log('  Tree root:', inputs.merkle_root);
       console.log('  Sender commitment:', senderCommitment);
-      console.log('  Single-leaf case: root == commitment:', inputs.merkle_root === senderCommitment);
+      console.log('  Real tree proof: root != commitment:', inputs.merkle_root !== senderCommitment);
       console.log('  Merkle path length:', inputs.sender_merkle_path.length);
       console.log('  Merkle indices length:', inputs.sender_merkle_indices.length);
+      console.log('  Non-zero path elements:', inputs.sender_merkle_path.filter(p => p !== "0").length);
+      console.log('  Non-zero indices:', inputs.sender_merkle_indices.filter(i => i !== 0).length);
       
       // Constraint 3: Balance sufficiency (main.nr:167-168)
       console.log('\nCONSTRAINT 3 - Balance Verification:');
@@ -287,9 +295,19 @@ export default function AccountSystemPage() {
         newBalance
       );
       
-      // Save updated account to storage
+      // Save updated account to storage and tree
       if (address) {
         AccountStorage.saveAccount(address, updatedAccount);
+        
+        // Update tree with new account state
+        await treeManager.updateAccount(selectedAccount, updatedAccount, address);
+        console.log('✅ Account updated in tree after transfer:', {
+          oldBalance: selectedAccount.balance,
+          newBalance: updatedAccount.balance,
+          newNonce: updatedAccount.nonce,
+          treeStats: treeManager.getStats()
+        });
+        
         setSelectedAccount(updatedAccount);
       }
       
@@ -358,11 +376,38 @@ export default function AccountSystemPage() {
         )}
 
         {/* Account Manager */}
-        <AccountManager onAccountSelected={setSelectedAccount} />
+        <AccountManager 
+          onAccountSelected={handleAccountSelected}
+          treeManager={treeManager}
+        />
       </div>
 
-      {/* Right Column: Transfer Interface */}
+      {/* Right Column: Transfer Interface & Tree Viewer */}
       <div className="space-y-6">
+        {/* Tab Navigation */}
+        <Card size="default" className="p-4">
+          <div className="flex gap-4">
+            <Button 
+              variant={activeTab === 'transfer' ? 'primary' : 'secondary'}
+              onClick={() => setActiveTab('transfer')}
+            >
+              Transfer Interface
+            </Button>
+            <Button 
+              variant={activeTab === 'tree' ? 'primary' : 'secondary'}
+              onClick={() => setActiveTab('tree')}
+            >
+              Merkle Tree Viewer
+            </Button>
+          </div>
+        </Card>
+        
+        {activeTab === 'tree' && (
+          <TreeViewer treeManager={treeManager} />
+        )}
+        
+        {activeTab === 'transfer' && (
+          <div className="space-y-6">
         {/* Account Selection Status */}
         {selectedAccount ? (
           <Card variant="light-purple" className="p-4">
@@ -544,10 +589,12 @@ export default function AccountSystemPage() {
 
         {/* Demo Notice */}
         <Alert
-          title="Demo Mode with Account Persistence"
-          description="This now uses real account persistence! Create accounts that survive browser refresh. Proofs use actual account data from secure storage. Ready for Phase 4 chain integration."
+          title="Demo Mode with Real Multi-User Merkle Tree"
+          description="Now uses real Merkle tree with multi-user support! Each account gets unique proof paths. Switch to Tree Viewer tab to see the full tree structure."
           variant="info"
         />
+          </div>
+        )}
       </div>
     </InkPageLayout>
   );

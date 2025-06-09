@@ -10,10 +10,36 @@ export interface PrivateAccount {
 export class AccountStorage {
   private static STORAGE_PREFIX = 'privateAccount_';
   
-  // Step 1.1: Secure key generation
+  /**
+   * Generate cryptographically secure secret key compatible with BN254 field
+   * 
+   * CRITICAL: Secret keys must be < BN254 field modulus for Noir circuits
+   * SECURITY: Uses crypto.getRandomValues() for cryptographic randomness
+   * COMPATIBILITY: Generated keys work with Pedersen hash circuits
+   * 
+   * @returns 64-character hex string (256 bits) within BN254 field bounds
+   */
   static generateSecretKey(): string {
-    const bytes = crypto.getRandomValues(new Uint8Array(32));
-    return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+    // BN254 field modulus - all secret keys must be smaller than this value
+    // This is the order of the elliptic curve used by Noir/zk-SNARKs
+    const FIELD_MODULUS = BigInt('21888242871839275222246405745257275088548364400416034343698204186575808495617');
+    
+    let secretKey: BigInt;
+    do {
+      // STEP 1: Generate 32 random bytes using crypto API
+      const bytes = crypto.getRandomValues(new Uint8Array(32));
+      
+      // STEP 2: Convert bytes to hex string then to BigInt
+      const hexString = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+      secretKey = BigInt('0x' + hexString);
+      
+      // STEP 3: Retry if >= field modulus (happens ~6% of the time)
+      // This ensures uniform distribution within valid field range
+    } while (secretKey >= FIELD_MODULUS);
+    
+    // STEP 4: Convert back to hex string (without 0x prefix)
+    // Pad to 64 characters (32 bytes) for consistent format
+    return secretKey.toString(16).padStart(64, '0');
   }
   
   // Step 1.2: Storage key formatting

@@ -282,7 +282,47 @@ export class PedersenHasher {
     }
   }
 
-  // Hash a single input (for pubkey generation)
+  /**
+   * Convert hex string to decimal string for Noir circuit compatibility
+   * 
+   * CRITICAL: Noir circuits expect decimal integers, not hex strings
+   * The BN254 elliptic curve used by Noir has a finite field with specific modulus
+   * All values must be < 21888242871839275222246405745257275088548364400416034343698204186575808495617
+   * 
+   * @param hexString - Hex string (with or without 0x prefix)
+   * @returns Decimal string representation within field bounds
+   */
+  private hexToDecimal(hexString: string): string {
+    // Remove 0x prefix if present (normalize input)
+    const cleanHex = hexString.startsWith('0x') ? hexString.slice(2) : hexString;
+    
+    // BN254 field modulus - maximum value for Noir field elements
+    // This is 2^254 - 2^32 * 351 + 1 (characteristic of BN254 curve)
+    const FIELD_MODULUS = BigInt('21888242871839275222246405745257275088548364400416034343698204186575808495617');
+    
+    // Convert hex string to BigInt for large number handling
+    let value = BigInt('0x' + cleanHex);
+    
+    // Ensure value is within field modulus (safety check)
+    // This should rarely trigger since we generate field-safe keys
+    if (value >= FIELD_MODULUS) {
+      value = value % FIELD_MODULUS;
+    }
+    
+    // Return as decimal string for Noir circuit
+    return value.toString();
+  }
+
+  /**
+   * Hash a single input using Pedersen hash (for public key derivation)
+   * 
+   * PURPOSE: Generate public keys from secret keys using cryptographically secure hash
+   * CIRCUIT: Uses pedersen_hash_multi circuit with single input
+   * SECURITY: Pedersen hash is collision-resistant and ZK-friendly
+   * 
+   * @param input - Secret key as hex string (64 chars, 256 bits)
+   * @returns Public key as hex string with 0x prefix
+   */
   async hashSingle(input: string): Promise<string> {
     if (!this.isInitialized) {
       await this.initialize();
@@ -293,12 +333,28 @@ export class PedersenHasher {
     }
 
     try {
-      const inputs = [input, "0", "0", "0"];
+      // STEP 1: Convert hex input to decimal for Noir circuit compatibility
+      const decimalInput = this.hexToDecimal(input);
+      
+      // STEP 2: Prepare circuit inputs (4 inputs, only first used for single hash)
+      const inputs = [decimalInput, "0", "0", "0"];
+      
+      console.log('Pedersen hashSingle:', {
+        originalInput: input,
+        convertedInput: decimalInput,
+        inputLength: input.length
+      });
+      
+      // STEP 3: Execute Noir circuit to compute Pedersen hash
       const { returnValue } = await this.noir.execute({ 
         inputs, 
-        input_count: "1" 
+        input_count: "1"  // Tell circuit to hash only first input
       });
-      return returnValue.toString();
+      
+      // STEP 4: Convert decimal result back to hex format for our app
+      // Pad to 64 chars (32 bytes) for consistent formatting
+      const resultHex = '0x' + BigInt(returnValue.toString()).toString(16).padStart(64, '0');
+      return resultHex;
     } catch (error) {
       console.error('Pedersen hash calculation failed:', error);
       throw new Error(`Pedersen hash calculation failed: ${error}`);
@@ -316,12 +372,19 @@ export class PedersenHasher {
     }
 
     try {
-      const inputs = [input1, input2, "0", "0"];
+      // Convert hex inputs to decimal for Noir circuit
+      const decimalInput1 = this.hexToDecimal(input1);
+      const decimalInput2 = this.hexToDecimal(input2);
+      const inputs = [decimalInput1, decimalInput2, "0", "0"];
+      
       const { returnValue } = await this.noir.execute({ 
         inputs, 
         input_count: "2" 
       });
-      return returnValue.toString();
+      
+      // Convert result back to hex format
+      const resultHex = '0x' + BigInt(returnValue.toString()).toString(16).padStart(64, '0');
+      return resultHex;
     } catch (error) {
       console.error('Pedersen hash calculation failed:', error);
       throw new Error(`Pedersen hash calculation failed: ${error}`);
@@ -339,12 +402,21 @@ export class PedersenHasher {
     }
 
     try {
-      const inputs = [input1, input2, input3, input4];
+      // Convert hex inputs to decimal for Noir circuit
+      const decimalInput1 = this.hexToDecimal(input1);
+      const decimalInput2 = this.hexToDecimal(input2);
+      const decimalInput3 = this.hexToDecimal(input3);
+      const decimalInput4 = this.hexToDecimal(input4);
+      const inputs = [decimalInput1, decimalInput2, decimalInput3, decimalInput4];
+      
       const { returnValue } = await this.noir.execute({ 
         inputs, 
         input_count: "4" 
       });
-      return returnValue.toString();
+      
+      // Convert result back to hex format
+      const resultHex = '0x' + BigInt(returnValue.toString()).toString(16).padStart(64, '0');
+      return resultHex;
     } catch (error) {
       console.error('Pedersen hash calculation failed:', error);
       throw new Error(`Pedersen hash calculation failed: ${error}`);
