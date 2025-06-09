@@ -9,9 +9,13 @@ const nextConfig: NextConfig = {
   
   reactStrictMode: false, // NoirJS compatibility
   
-  webpack: (config) => {
-    // Disable fs fallback (NoirJS requirement)
-    config.resolve.fallback = { fs: false };
+  webpack: (config, { isServer }) => {
+    // Disable fs fallback for client-side (Noir requirement)
+    config.resolve.fallback = { 
+      fs: false,
+      path: false,
+      crypto: false 
+    };
     
     // Prioritize browser field for module resolution
     config.resolve.mainFields = ['browser', 'module', 'main'];
@@ -29,6 +33,15 @@ const nextConfig: NextConfig = {
       syncWebAssembly: true,
       layers: true,
     };
+    
+    // Exclude circuit files from server-side processing to prevent SSR issues
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push({
+        '../circuits/account_system.json': 'commonjs ../circuits/account_system.json',
+        '../circuits/commitment_system.json': 'commonjs ../circuits/commitment_system.json'
+      });
+    }
     
     return config;
   },

@@ -1,13 +1,17 @@
-import { connect, disconnect } from "starknetkit";
 import type { WalletConnection } from "./types";
 
 export class WalletManager {
   private static connection: WalletConnection | null = null;
 
   static async connectWallet(): Promise<WalletConnection | null> {
+    if (typeof window === 'undefined') return null;
+    
     try {
       console.log("Connecting to Starknet wallet...");
 
+      // Dynamic import for client-side only
+      const { connect } = await import("starknetkit");
+      
       const { wallet, connectorData } = await connect({
         modalMode: "alwaysAsk",
         modalTheme: "system",
@@ -42,7 +46,11 @@ export class WalletManager {
   }
 
   static async disconnectWallet(): Promise<void> {
+    if (typeof window === 'undefined') return;
+    
     try {
+      // Dynamic import for client-side only
+      const { disconnect } = await import("starknetkit");
       await disconnect({ clearLastWallet: true });
       this.connection = null;
 
@@ -83,9 +91,12 @@ export class WalletManager {
 
   // Auto-reconnect if wallet was previously connected
   static async autoReconnect(): Promise<WalletConnection | null> {
-    if (!this.wasConnected()) return null;
+    if (typeof window === 'undefined' || !this.wasConnected()) return null;
 
     try {
+      // Dynamic import for client-side only
+      const { connect } = await import("starknetkit");
+      
       // Try to reconnect silently
       const { wallet, connectorData } = await connect({
         modalMode: "neverAsk", // Silent reconnect

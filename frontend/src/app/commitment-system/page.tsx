@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Typography, Button, Input, Card } from "@inkonchain/ink-kit";
 import { WalletConnect } from '../../components/WalletConnect';
 import { useWallet } from '../../hooks/useWallet';
-import { CircuitManager } from '../../lib/circuits';
-import type { CommitmentSystemInputs, ProofResult } from '../../lib/types';
+import { commitmentSystemProver, CircuitUtils } from '../../lib/circuits';
+import type { ProofResult } from '../../lib/types';
 
 export default function CommitmentSystemPage() {
   const { isConnected, address, shortAddress } = useWallet();
@@ -24,25 +24,36 @@ export default function CommitmentSystemPage() {
     setProgress('Generating commitment proof...');
     
     try {
-      const prover = await CircuitManager.getCommitmentSystemProver();
+      await commitmentSystemProver.initialize();
       
-      // Generate mock inputs for demonstration
-      const inputs: CommitmentSystemInputs = {
-        sender_value: commitmentValue,
-        sender_nonce: Math.random().toString(),
-        sender_asset_id: "1",
-        recipient_value: commitmentValue,
-        recipient_nonce: recipientCommitment,
-        recipient_asset_id: "1",
-        transfer_amount: commitmentValue,
-        sender_merkle_path: new Array(20).fill("0"),
+      // Generate proper inputs based on actual circuit signature
+      const aliceSecretKey = CircuitUtils.generateSecretKey();
+      const oldNonce = "0";
+      const newNonce = "1";
+      const currentBalance = "1000";
+      const newBalance = (1000 - parseInt(commitmentValue)).toString();
+      
+      const inputs = {
+        // Public inputs
         merkle_root: "0",
-        nullifier: "0",
-        new_sender_commitment: "0",
-        new_recipient_commitment: "0"
+        nullifier_alice: CircuitUtils.calculateNullifier(aliceSecretKey, oldNonce),
+        commitment_alice_new: CircuitUtils.calculateCommitment(aliceSecretKey, newBalance, newNonce),
+        commitment_bob_new: recipientCommitment,
+        asset_id: "1",
+        
+        // Private inputs
+        value_alice_old: currentBalance,
+        value_alice_new: newBalance,
+        value_bob_received: commitmentValue,
+        nonce_alice_old: oldNonce,
+        nonce_alice_new: newNonce,
+        alice_secret_key: aliceSecretKey,
+        alice_old_commitment_id: "0",
+        merkle_path: CircuitUtils.generateMockMerklePath(),
+        merkle_indices: CircuitUtils.generateMockMerkleIndicesBool()
       };
       
-      const result = await prover.generateProof(inputs);
+      const result = await commitmentSystemProver.generateProof(inputs);
       setProgress('Commitment proof generated!');
       setProofResult(result);
       
@@ -78,7 +89,7 @@ export default function CommitmentSystemPage() {
           </Card>
         ) : (
           <Card className="text-center mb-6 p-4">
-            <Typography variant="body-2">
+            <Typography variant="body-2-regular">
               Connected: {shortAddress}
             </Typography>
           </Card>
@@ -124,7 +135,7 @@ export default function CommitmentSystemPage() {
           
           {progress && (
             <div className="text-center">
-              <Typography variant="body-2">
+              <Typography variant="body-2-regular">
                 {progress}
               </Typography>
             </div>
@@ -132,7 +143,7 @@ export default function CommitmentSystemPage() {
           
           {error && (
             <div className="text-center">
-              <Typography variant="body-2" className="ink:text-status-error">
+              <Typography variant="body-2-regular" className="ink:text-status-error">
                 {error}
               </Typography>
             </div>
@@ -143,7 +154,7 @@ export default function CommitmentSystemPage() {
               <Typography variant="h3" className="ink:text-status-success">
                 ✓ Commitment Ready
               </Typography>
-              <Typography variant="body-2">
+              <Typography variant="body-2-regular">
                 Maximum privacy proof generated
               </Typography>
               <Button variant="secondary" size="lg" className="w-full py-4">

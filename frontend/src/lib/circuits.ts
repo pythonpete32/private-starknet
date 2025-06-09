@@ -1,38 +1,96 @@
 import { Noir } from '@noir-lang/noir_js';
-import { UltraHonkBackend } from '@aztec/bb.js'; // Using security-critical version
-import type { AccountSystemInputs, CommitmentSystemInputs, ProofResult } from './types';
+import { UltraHonkBackend } from '@aztec/bb.js';
 
-// Direct imports from compiled circuits - simplest approach
-// Note: Type casting needed due to version compatibility between Nargo beta.6 and NoirJS beta.3
-import accountCircuitRaw from '../../../circuits/account_system/target/account_system.json';
-import commitmentCircuitRaw from '../../../circuits/commitment_system/target/commitment_system.json';
+// Types based on actual circuit signatures
+export interface Account {
+  pubkey: string;
+  balance: string;
+  nonce: string;
+  asset_id: string;
+}
 
-// Type cast the circuits to work with NoirJS beta.3
-const accountCircuit = accountCircuitRaw as any;
-const commitmentCircuit = commitmentCircuitRaw as any;
+// Account System Circuit Types (based on actual Noir circuit)
+export interface AccountSystemInputs {
+  // Public inputs
+  merkle_root: string;
+  sender_nullifier: string;
+  sender_new_commitment: string;
+  recipient_new_commitment: string;
+  asset_id: string;
+  
+  // Private inputs
+  sender_account: Account;
+  sender_secret_key: string;
+  transfer_amount: string;
+  recipient_pubkey: string;
+  recipient_old_balance: string;
+  recipient_old_nonce: string;
+  sender_new_account: Account;
+  sender_merkle_path: string[];
+  sender_merkle_indices: string[];
 
+  // Index signature for NoirJS compatibility
+  [key: string]: any;
+}
+
+// Commitment System Circuit Types (based on actual Noir circuit)
+export interface CommitmentSystemInputs {
+  // Public inputs
+  merkle_root: string;
+  nullifier_alice: string;
+  commitment_alice_new: string;
+  commitment_bob_new: string;
+  asset_id: string;
+  
+  // Private inputs
+  value_alice_old: string;
+  value_alice_new: string;
+  value_bob_received: string;
+  nonce_alice_old: string;
+  nonce_alice_new: string;
+  alice_secret_key: string;
+  alice_old_commitment_id: string;
+  merkle_path: string[];
+  merkle_indices: boolean[];
+
+  // Index signature for NoirJS compatibility
+  [key: string]: any;
+}
+
+// Proof generation result interface
+export interface ProofResult {
+  proof: Uint8Array;
+  publicInputs: string[];
+}
+
+// Circuit manager for Account System
 export class AccountSystemProver {
   private noir: Noir | null = null;
   private backend: UltraHonkBackend | null = null;
-  private initialized = false;
+  private isInitialized = false;
 
   async initialize(): Promise<void> {
-    if (this.initialized) return;
-    
+    if (this.isInitialized) return;
+
     try {
-      console.log('Initializing Account System circuit...');
-      this.noir = new Noir(accountCircuit);
-      this.backend = new UltraHonkBackend(accountCircuit.bytecode);
-      this.initialized = true;
+      // Dynamic import to avoid SSR issues
+      const circuit = await import('../circuits/account_system.json');
+      const circuitData = circuit.default || circuit;
+      
+      // Type assertion for NoirJS compatibility
+      this.noir = new Noir(circuitData as any);
+      this.backend = new UltraHonkBackend(circuitData.bytecode);
+      
+      this.isInitialized = true;
       console.log('Account System circuit initialized successfully');
     } catch (error) {
       console.error('Failed to initialize Account System circuit:', error);
-      throw new Error(`Circuit initialization failed: ${error}`);
+      throw new Error('Failed to initialize Account System circuit');
     }
   }
 
   async generateProof(inputs: AccountSystemInputs): Promise<ProofResult> {
-    if (!this.initialized) {
+    if (!this.isInitialized) {
       await this.initialize();
     }
 
@@ -43,62 +101,70 @@ export class AccountSystemProver {
     try {
       console.log('Generating Account System proof...');
       console.log('Inputs:', inputs);
-      
-      // Execute the circuit to generate witness
-      // Cast inputs to InputMap format expected by NoirJS beta.3
-      const { witness } = await this.noir.execute(inputs as any);
-      console.log('Witness generated successfully');
-      
-      // Generate the proof
+
+      // Execute circuit to get witness
+      const { witness } = await this.noir.execute(inputs);
+      console.log('Witness generated, creating proof...');
+
+      // Generate proof using UltraHonk backend
       const proof = await this.backend.generateProof(witness);
-      console.log('Account System proof generated successfully');
-      
+      console.log('Proof generated successfully');
+
       return {
         proof: proof.proof,
-        publicInputs: proof.publicInputs
+        publicInputs: proof.publicInputs || []
       };
     } catch (error) {
-      console.error('Account System proof generation failed:', error);
+      console.error('Proof generation failed:', error);
       throw new Error(`Proof generation failed: ${error}`);
     }
   }
 
-  async verifyProof(proof: Uint8Array, publicInputs: string[]): Promise<boolean> {
+  async verifyProof(proof: ProofResult): Promise<boolean> {
     if (!this.backend) {
       throw new Error('Backend not initialized');
     }
 
     try {
-      return await this.backend.verifyProof({ proof, publicInputs });
+      return await this.backend.verifyProof({
+        proof: proof.proof,
+        publicInputs: proof.publicInputs
+      });
     } catch (error) {
-      console.error('Account System proof verification failed:', error);
+      console.error('Proof verification failed:', error);
       return false;
     }
   }
 }
 
+// Circuit manager for Commitment System
 export class CommitmentSystemProver {
   private noir: Noir | null = null;
   private backend: UltraHonkBackend | null = null;
-  private initialized = false;
+  private isInitialized = false;
 
   async initialize(): Promise<void> {
-    if (this.initialized) return;
-    
+    if (this.isInitialized) return;
+
     try {
-      console.log('Initializing Commitment System circuit...');
-      this.noir = new Noir(commitmentCircuit);
-      this.backend = new UltraHonkBackend(commitmentCircuit.bytecode);
-      this.initialized = true;
+      // Dynamic import to avoid SSR issues
+      const circuit = await import('../circuits/commitment_system.json');
+      const circuitData = circuit.default || circuit;
+      
+      // Type assertion for NoirJS compatibility
+      this.noir = new Noir(circuitData as any);
+      this.backend = new UltraHonkBackend(circuitData.bytecode);
+      
+      this.isInitialized = true;
       console.log('Commitment System circuit initialized successfully');
     } catch (error) {
       console.error('Failed to initialize Commitment System circuit:', error);
-      throw new Error(`Circuit initialization failed: ${error}`);
+      throw new Error('Failed to initialize Commitment System circuit');
     }
   }
 
   async generateProof(inputs: CommitmentSystemInputs): Promise<ProofResult> {
-    if (!this.initialized) {
+    if (!this.isInitialized) {
       await this.initialize();
     }
 
@@ -109,91 +175,87 @@ export class CommitmentSystemProver {
     try {
       console.log('Generating Commitment System proof...');
       console.log('Inputs:', inputs);
-      
-      // Execute the circuit to generate witness
-      // Cast inputs to InputMap format expected by NoirJS beta.3
-      const { witness } = await this.noir.execute(inputs as any);
-      console.log('Witness generated successfully');
-      
-      // Generate the proof
+
+      // Execute circuit to get witness
+      const { witness } = await this.noir.execute(inputs);
+      console.log('Witness generated, creating proof...');
+
+      // Generate proof using UltraHonk backend
       const proof = await this.backend.generateProof(witness);
-      console.log('Commitment System proof generated successfully');
-      
+      console.log('Proof generated successfully');
+
       return {
         proof: proof.proof,
-        publicInputs: proof.publicInputs
+        publicInputs: proof.publicInputs || []
       };
     } catch (error) {
-      console.error('Commitment System proof generation failed:', error);
+      console.error('Proof generation failed:', error);
       throw new Error(`Proof generation failed: ${error}`);
     }
   }
 
-  async verifyProof(proof: Uint8Array, publicInputs: string[]): Promise<boolean> {
+  async verifyProof(proof: ProofResult): Promise<boolean> {
     if (!this.backend) {
       throw new Error('Backend not initialized');
     }
 
     try {
-      return await this.backend.verifyProof({ proof, publicInputs });
+      return await this.backend.verifyProof({
+        proof: proof.proof,
+        publicInputs: proof.publicInputs
+      });
     } catch (error) {
-      console.error('Commitment System proof verification failed:', error);
+      console.error('Proof verification failed:', error);
       return false;
     }
   }
 }
 
-// Circuit factory for easier management
-export class CircuitManager {
-  private static accountProver: AccountSystemProver | null = null;
-  private static commitmentProver: CommitmentSystemProver | null = null;
-
-  static async getAccountSystemProver(): Promise<AccountSystemProver> {
-    if (!this.accountProver) {
-      this.accountProver = new AccountSystemProver();
-      await this.accountProver.initialize();
-    }
-    return this.accountProver;
-  }
-
-  static async getCommitmentSystemProver(): Promise<CommitmentSystemProver> {
-    if (!this.commitmentProver) {
-      this.commitmentProver = new CommitmentSystemProver();
-      await this.commitmentProver.initialize();
-    }
-    return this.commitmentProver;
-  }
-
-  // Helper method to generate mock inputs for testing
-  static generateMockAccountInputs(): AccountSystemInputs {
+// Utility functions for circuit inputs
+export class CircuitUtils {
+  // Generate mock account for testing
+  static generateMockAccount(balance: string = "1000", nonce: string = "0"): Account {
     return {
-      sender_secret: "123456789",
-      sender_balance: "1000",
-      sender_nonce: "1",
-      recipient_pubkey: "987654321",
-      amount: "100",
-      sender_merkle_path: new Array(20).fill("0"),
-      merkle_root: "0",
-      nullifier: "0",
-      new_sender_commitment: "0",
-      new_recipient_commitment: "0"
+      pubkey: Math.random().toString().slice(2, 18), // Mock pubkey
+      balance,
+      nonce,
+      asset_id: "1" // Default DAI asset ID
     };
   }
 
-  static generateMockCommitmentInputs(): CommitmentSystemInputs {
-    return {
-      sender_value: "1000",
-      sender_nonce: "123456789",
-      sender_asset_id: "1",
-      recipient_value: "100",
-      recipient_nonce: "987654321",
-      recipient_asset_id: "1",
-      transfer_amount: "100",
-      sender_merkle_path: new Array(20).fill("0"),
-      merkle_root: "0",
-      nullifier: "0",
-      new_sender_commitment: "0",
-      new_recipient_commitment: "0"
-    };
+  // Generate mock merkle path (20 levels)
+  static generateMockMerklePath(): string[] {
+    return Array(20).fill("0");
+  }
+
+  // Generate mock merkle indices (20 levels)
+  static generateMockMerkleIndices(): string[] {
+    return Array(20).fill("0");
+  }
+
+  // Generate mock merkle indices as booleans for commitment system
+  static generateMockMerkleIndicesBool(): boolean[] {
+    return Array(20).fill(false);
+  }
+
+  // Generate a random secret key
+  static generateSecretKey(): string {
+    return Math.random().toString().slice(2, 18);
+  }
+
+  // Calculate nullifier (simplified - in production use proper hash)
+  static calculateNullifier(secretKey: string, nonce: string): string {
+    // Simplified nullifier calculation for demo
+    return (BigInt(secretKey) + BigInt(nonce)).toString();
+  }
+
+  // Calculate commitment (simplified - in production use proper hash)
+  static calculateCommitment(pubkey: string, balance: string, nonce: string): string {
+    // Simplified commitment calculation for demo
+    return (BigInt(pubkey) + BigInt(balance) + BigInt(nonce)).toString();
   }
 }
+
+// Export singleton instances
+export const accountSystemProver = new AccountSystemProver();
+export const commitmentSystemProver = new CommitmentSystemProver();

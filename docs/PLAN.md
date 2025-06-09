@@ -80,11 +80,11 @@ private-dai-starknet/
 - [x] Add comprehensive documentation and usage guide
 
 ### Phase 3: Frontend Development  
-- [ ] Setup Vite project with NoirJS
+- [x] Setup Next.js project with NoirJS
 - [ ] Create proof generation module
 - [ ] Build merkle tree management
-- [ ] Design transfer UI
-- [ ] Add wallet connection (Starknet.js)
+- [x] Design transfer UI
+- [x] Add wallet connection (Starknet.js)
 - [ ] Implement local account storage
 
 ### Phase 4: Smart Contract Development
