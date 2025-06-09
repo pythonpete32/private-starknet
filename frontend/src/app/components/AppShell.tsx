@@ -1,23 +1,65 @@
 "use client";
 
-import { InkLayout } from "@inkonchain/ink-kit";
-import { Navigation } from "./Navigation";
+import {
+  InkLayout,
+  InkPageLayout,
+  InkPanel,
+  SegmentedControl,
+} from "@inkonchain/ink-kit";
 import { Logo } from "./Logo";
+import { WalletDropdown } from "./WalletDropdown";
+import { usePathname } from "next/navigation";
 
 interface AppShellProps {
   children: React.ReactNode;
 }
 
 export function AppShell({ children }: AppShellProps) {
+  const pathname = usePathname();
+
+  const navOptions = [
+    {
+      asChild: true,
+      children: <a href="/" target="_self">Home</a>,
+      selectedByDefault: pathname === "/",
+      value: "/"
+    },
+    {
+      asChild: true,
+      children: <a href="/account-system" target="_self">Account</a>,
+      selectedByDefault: pathname === "/account-system",
+      value: "/account-system"
+    },
+    {
+      asChild: true,
+      children: <a href="/commitment-system" target="_self">Commitment</a>,
+      selectedByDefault: pathname === "/commitment-system",
+      value: "/commitment-system"
+    }
+  ];
+
+  const handleNavChange = () => {
+    // Navigation handled by the anchor tags
+  };
+
   return (
     <InkLayout
       mainIcon={<Logo />}
-      sideNavigation={<Navigation />}
-      mobileNavigation={<Navigation />}
+      topNavigation={
+        <div className="flex items-center justify-center w-full">
+          <SegmentedControl
+            options={navOptions}
+            onOptionChange={handleNavChange}
+          />
+        </div>
+      }
+      headerContent={<WalletDropdown />}
     >
-      <div className="min-h-[80vh] flex flex-col justify-center max-w-5xl mx-auto px-8">
-        {children}
-      </div>
+      <InkPageLayout>
+        <InkPanel size="auto" className="min-h-[calc(100vh-8rem)]">
+          {children}
+        </InkPanel>
+      </InkPageLayout>
     </InkLayout>
   );
 }

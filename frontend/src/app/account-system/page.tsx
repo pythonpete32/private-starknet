@@ -56,42 +56,44 @@ export default function AccountSystemPage() {
   const canGenerateProof = isConnected && recipientAddress && amount && !isGenerating;
 
   return (
-    <div className="ink:min-h-screen ink:flex ink:flex-col ink:justify-center ink:max-w-2xl ink:mx-auto ink:px-8 ink:py-16">
-      {/* Header */}
-      <div className="ink:text-center ink:mb-12">
-        <Typography variant="h1" className="ink:mb-4">
+    <div>
+      {/* Hero - Clean and focused */}
+      <div className="text-center mb-20">
+        <Typography variant="h1" className="mb-6">
           Send DAI Privately
         </Typography>
-        <Typography variant="subtitle-1" className="ink:text-muted">
+        <Typography variant="h5">
           Account System • Recommended for most users
         </Typography>
       </div>
 
-      {/* Wallet Connection Card */}
-      {!isConnected ? (
-        <Card className="ink:p-8 ink:mb-8">
-          <WalletConnect />
-        </Card>
-      ) : (
-        <Card className="ink:p-6 ink:mb-8 ink:text-center">
-          <Typography variant="body-1" className="ink:text-muted">
-            Connected: <span className="ink:font-mono">{shortAddress}</span>
-          </Typography>
-        </Card>
-      )}
+      {/* Main Content */}
+      <div className="max-w-2xl mx-auto">
+        {/* Wallet Connection Card */}
+        {!isConnected ? (
+          <Card className="p-8 mb-8">
+            <WalletConnect />
+          </Card>
+        ) : (
+          <Card className="p-6 mb-8 text-center">
+            <Typography variant="body-1">
+              Connected: <span className="font-mono">{shortAddress}</span>
+            </Typography>
+          </Card>
+        )}
 
       {/* Transfer Form Card */}
       {isConnected && (
-        <Card className="ink:p-8">
-          <div className="ink:space-y-6">
-            <div className="ink:text-center ink:mb-6">
+        <Card className="p-8">
+          <div className="space-y-6">
+            <div className="text-center mb-6">
               <Typography variant="h3">
                 Private Transfer
               </Typography>
             </div>
 
             <div>
-              <Typography variant="body-2" className="ink:font-medium ink:mb-3">
+              <Typography variant="body-2-bold" className="mb-3">
                 To Address
               </Typography>
               <Input 
@@ -103,7 +105,7 @@ export default function AccountSystemPage() {
             </div>
             
             <div>
-              <Typography variant="body-2" className="ink:font-medium ink:mb-3">
+              <Typography variant="body-2-bold" className="mb-3">
                 Amount (DAI)
               </Typography>
               <Input 
@@ -117,7 +119,8 @@ export default function AccountSystemPage() {
             
             <Button 
               variant="primary" 
-              className="ink:w-full ink:py-4"
+              size="lg"
+              className="w-full py-4"
               disabled={!canGenerateProof}
               onClick={handleGenerateProof}
             >
@@ -125,15 +128,15 @@ export default function AccountSystemPage() {
             </Button>
             
             {progress && (
-              <div className="ink:text-center ink:py-4">
-                <Typography variant="body-2" className="ink:text-accent">
+              <div className="text-center py-4">
+                <Typography variant="body-2">
                   {progress}
                 </Typography>
               </div>
             )}
             
             {error && (
-              <div className="ink:text-center ink:py-4">
+              <div className="text-center py-4">
                 <Typography variant="body-2" className="ink:text-status-error">
                   {error}
                 </Typography>
@@ -145,20 +148,21 @@ export default function AccountSystemPage() {
 
       {/* Success State Card */}
       {proofResult && (
-        <Card className="ink:p-8 ink:mt-8 ink:text-center">
-          <div className="ink:space-y-4">
-            <Typography variant="h3" className="ink:text-accent">
+        <Card className="p-8 mt-8 text-center">
+          <div className="space-y-4">
+            <Typography variant="h3" className="ink:text-status-success">
               ✓ Transfer Ready
             </Typography>
-            <Typography variant="body-1" className="ink:text-muted">
+            <Typography variant="body-1">
               Proof generated successfully
             </Typography>
-            <Button variant="secondary" className="ink:w-full ink:py-4">
+            <Button variant="secondary" size="lg" className="w-full py-4">
               Submit to Network
             </Button>
           </div>
         </Card>
-      )}
+        )}
+      </div>
     </div>
   );
 }

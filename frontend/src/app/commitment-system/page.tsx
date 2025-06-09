@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from "react";
-import { Typography, Button, Input } from "@inkonchain/ink-kit";
+import { Typography, Button, Input, Card } from "@inkonchain/ink-kit";
 import { WalletConnect } from '../../components/WalletConnect';
 import { useWallet } from '../../hooks/useWallet';
 import { CircuitManager } from '../../lib/circuits';
@@ -58,35 +58,37 @@ export default function CommitmentSystemPage() {
   const canGenerateProof = isConnected && commitmentValue && recipientCommitment && !isGenerating;
 
   return (
-    <div className="ink:min-h-screen ink:flex ink:flex-col ink:justify-center ink:max-w-md ink:mx-auto ink:px-6">
-      {/* Header */}
-      <div className="ink:text-center ink:mb-8">
-        <Typography variant="h1" className="ink:mb-2">
+    <div>
+      {/* Hero - Clean and focused */}
+      <div className="text-center mb-20">
+        <Typography variant="h1" className="mb-6">
           Private Commitments
         </Typography>
-        <Typography variant="body-1" className="ink:text-muted">
+        <Typography variant="h5">
           Maximum Privacy System
         </Typography>
       </div>
 
-      {/* Wallet Connection */}
-      {!isConnected ? (
-        <div className="ink:mb-8">
-          <WalletConnect />
-        </div>
-      ) : (
-        <div className="ink:text-center ink:mb-6">
-          <Typography variant="body-2" className="ink:text-muted">
-            Connected: {shortAddress}
-          </Typography>
-        </div>
-      )}
+      {/* Main Content */}
+      <div className="max-w-lg mx-auto">
+        {/* Wallet Connection */}
+        {!isConnected ? (
+          <Card className="mb-8 p-8">
+            <WalletConnect />
+          </Card>
+        ) : (
+          <Card className="text-center mb-6 p-4">
+            <Typography variant="body-2">
+              Connected: {shortAddress}
+            </Typography>
+          </Card>
+        )}
 
       {/* Commitment Form */}
       {isConnected && (
-        <div className="ink:space-y-6">
+        <Card className="space-y-6 p-6">
           <div>
-            <Typography variant="body-2" className="ink:font-medium ink:mb-2">
+            <Typography variant="body-2-bold" className="mb-2">
               Amount (DAI)
             </Typography>
             <Input 
@@ -99,7 +101,7 @@ export default function CommitmentSystemPage() {
           </div>
           
           <div>
-            <Typography variant="body-2" className="ink:font-medium ink:mb-2">
+            <Typography variant="body-2-bold" className="mb-2">
               Recipient Commitment Hash
             </Typography>
             <Input 
@@ -112,7 +114,8 @@ export default function CommitmentSystemPage() {
           
           <Button 
             variant="primary" 
-            className="ink:w-full ink:py-4"
+            size="lg"
+            className="w-full py-4"
             disabled={!canGenerateProof}
             onClick={handleGenerateProof}
           >
@@ -120,15 +123,15 @@ export default function CommitmentSystemPage() {
           </Button>
           
           {progress && (
-            <div className="ink:text-center">
-              <Typography variant="body-2" className="ink:text-accent">
+            <div className="text-center">
+              <Typography variant="body-2">
                 {progress}
               </Typography>
             </div>
           )}
           
           {error && (
-            <div className="ink:text-center">
+            <div className="text-center">
               <Typography variant="body-2" className="ink:text-status-error">
                 {error}
               </Typography>
@@ -136,20 +139,21 @@ export default function CommitmentSystemPage() {
           )}
 
           {proofResult && (
-            <div className="ink:text-center ink:space-y-4 ink:pt-6">
-              <Typography variant="h3" className="ink:text-accent">
+            <div className="text-center space-y-4 pt-6">
+              <Typography variant="h3" className="ink:text-status-success">
                 ✓ Commitment Ready
               </Typography>
-              <Typography variant="body-2" className="ink:text-muted">
+              <Typography variant="body-2">
                 Maximum privacy proof generated
               </Typography>
-              <Button variant="secondary" className="ink:w-full">
+              <Button variant="secondary" size="lg" className="w-full py-4">
                 Submit to Network
               </Button>
             </div>
           )}
-        </div>
-      )}
+        </Card>
+        )}
+      </div>
     </div>
   );
 }

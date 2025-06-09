@@ -21,10 +21,10 @@ export default function Home() {
           <div className="text-center space-y-6">
             <div className="space-y-3">
               <Typography variant="h2">Account System</Typography>
-              <Typography variant="body-1" className="text-accent font-medium">
+              <Typography variant="body-2-bold">
                 Recommended
               </Typography>
-              <Typography variant="body-1" className="opacity-60">
+              <Typography variant="body-1">
                 Efficient gas costs with Starknet-native account abstraction
               </Typography>
             </div>
@@ -42,10 +42,10 @@ export default function Home() {
           <div className="text-center space-y-6">
             <div className="space-y-3">
               <Typography variant="h2">Commitment System</Typography>
-              <Typography variant="body-1" className="text-accent font-medium">
+              <Typography variant="body-2-bold">
                 Maximum Privacy
               </Typography>
-              <Typography variant="body-1" className="opacity-60">
+              <Typography variant="body-1">
                 Complete unlinkability for maximum anonymity
               </Typography>
             </div>
@@ -61,7 +61,7 @@ export default function Home() {
 
       {/* Quick steps - Subtle */}
       <div className="text-center opacity-60">
-        <Typography variant="body-2-regular" className="text-muted">
+        <Typography variant="body-2-regular">
           Connect wallet → Choose system → Transfer privately
         </Typography>
       </div>

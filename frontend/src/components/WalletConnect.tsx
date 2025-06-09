@@ -15,9 +15,9 @@ export function WalletConnect() {
 
   if (isLoading) {
     return (
-      <Card className="ink:p-4">
-        <div className="ink:flex ink:items-center ink:space-x-3">
-          <div className="ink:animate-spin ink:h-4 ink:w-4 ink:border-2 ink:border-gray-300 ink:border-t-blue-600 ink:rounded-full"></div>
+      <Card className="p-4">
+        <div className="flex items-center space-x-3">
+          <div className="animate-spin h-4 w-4 border-2 ink:bg-button-primary rounded-full"></div>
           <Typography variant="body-2-regular">Loading wallet...</Typography>
         </div>
       </Card>
@@ -26,20 +26,20 @@ export function WalletConnect() {
 
   if (!isConnected) {
     return (
-      <Card className="ink:p-4 ink:space-y-3">
+      <Card className="p-4 space-y-3">
         <Typography variant="h3">Connect Wallet</Typography>
-        <Typography variant="body-2-regular" className="ink:text-muted">
+        <Typography variant="body-2-regular">
           Connect your Starknet wallet to start making private transfers
         </Typography>
         <Button 
           variant="primary" 
-          className="ink:w-full"
+          className="w-full"
           onClick={connect}
           disabled={isConnecting}
         >
           {isConnecting ? 'Connecting...' : 'Connect Starknet Wallet'}
         </Button>
-        <Typography variant="caption-1-regular" className="ink:text-muted ink:text-center">
+        <Typography variant="caption-1-regular" className="text-center">
           Supports ArgentX, Braavos, and Argent Web Wallet
         </Typography>
       </Card>
@@ -47,17 +47,16 @@ export function WalletConnect() {
   }
 
   return (
-    <Card className="ink:p-4 ink:space-y-3">
-      <div className="ink:flex ink:items-center ink:justify-between">
+    <Card className="p-4 space-y-3">
+      <div className="flex items-center justify-between">
         <div>
-          <Typography variant="body-1" className="ink:font-medium">Wallet Connected</Typography>
-          <Typography variant="body-2-regular" className="ink:text-muted ink:font-mono">
+          <Typography variant="body-1">Wallet Connected</Typography>
+          <Typography variant="body-2-regular" className="font-mono">
             {shortAddress}
           </Typography>
         </div>
-        <div className="ink:flex ink:items-center ink:space-x-2">
-          <div className="ink:w-2 ink:h-2 ink:bg-green-500 ink:rounded-full"></div>
-          <Typography variant="caption-1-regular" className="ink:text-green-600">
+        <div className="flex items-center space-x-2">
+          <Typography variant="caption-1-regular">
             Connected
           </Typography>
         </div>
@@ -65,7 +64,7 @@ export function WalletConnect() {
       
       <Button 
         variant="secondary" 
-        className="ink:w-full"
+        className="w-full"
         onClick={disconnect}
       >
         Disconnect Wallet
