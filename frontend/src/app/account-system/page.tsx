@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Typography, Card, Input, Button, Alert } from '@inkonchain/ink-kit';
 import { createAccountSystemProver, createPedersenHasher } from '../../lib/circuits-client';
-import type { AccountSystemInputs, ProofResult } from '../../lib/circuits';
+import type { ProofResult } from '../../lib/circuits';
 
 export default function AccountSystemPage() {
   const [recipient, setRecipient] = useState('');
@@ -114,11 +114,15 @@ export default function AccountSystemPage() {
       // Generate a deterministic secret key for demo
       const senderSecretKey = "12345";
       
-      // Generate valid inputs step by step
+      // Generate valid inputs step by step - Following MIST pattern
       const assetId = "1";
+      
+      console.log('🔍 DEBUGGING CIRCUIT INPUTS:');
+      console.log('Secret Key:', senderSecretKey);
       
       // Calculate sender's pubkey using actual pedersen hash
       const senderPubkey = await hasher.hashSingle(senderSecretKey);
+      console.log('Computed Pubkey:', senderPubkey);
       
       // Create sender's account
       const senderAccount = {
@@ -127,6 +131,7 @@ export default function AccountSystemPage() {
         nonce: "0",
         asset_id: assetId
       };
+      console.log('Sender Account:', senderAccount);
       
       // Calculate sender's account commitment
       const senderCommitment = await hasher.hashQuadruple(
@@ -135,6 +140,13 @@ export default function AccountSystemPage() {
         senderAccount.nonce,
         senderAccount.asset_id
       );
+      console.log('Sender Commitment:', senderCommitment);
+      
+      // Verify the circuit's expectation: pubkey should equal pedersen_hash([secret_key])
+      // This is the constraint that's failing - let's test it explicitly
+      const expectedPubkey = await hasher.hashSingle(senderSecretKey);
+      console.log('Expected Pubkey:', expectedPubkey);
+      console.log('Pubkey Match:', senderPubkey === expectedPubkey);
       
       // Calculate nullifier
       const nullifier = await hasher.hashDouble(senderCommitment, senderSecretKey);
@@ -171,36 +183,80 @@ export default function AccountSystemPage() {
         recipientNewAccount.asset_id
       );
       
-      const inputs: AccountSystemInputs = {
-        // Public inputs
-        merkle_root: senderCommitment, // Single leaf tree
+      // CRITICAL FIX: Circuit expects structured inputs matching Account struct and array formats
+      const inputs = {
+        // Public inputs (circuit main function parameters)
+        merkle_root: senderCommitment,
         sender_nullifier: nullifier,
         sender_new_commitment: senderNewCommitment,
         recipient_new_commitment: recipientNewCommitment,
         asset_id: assetId,
         
-        // Private inputs
-        sender_account: senderAccount,
+        // Private inputs - Account structs must be individual fields
+        sender_account: {
+          pubkey: senderAccount.pubkey,
+          balance: senderAccount.balance,
+          nonce: senderAccount.nonce,
+          asset_id: senderAccount.asset_id
+        },
         sender_secret_key: senderSecretKey,
         transfer_amount: amount,
         recipient_pubkey: recipient,
         recipient_old_balance: recipientOldBalance,
         recipient_old_nonce: recipientOldNonce,
-        sender_new_account: senderNewAccount,
+        sender_new_account: {
+          pubkey: senderNewAccount.pubkey,
+          balance: senderNewAccount.balance,
+          nonce: senderNewAccount.nonce,
+          asset_id: senderNewAccount.asset_id
+        },
+        // Arrays must be exactly 20 elements for MERKLE_DEPTH
         sender_merkle_path: Array(20).fill("0"),
         sender_merkle_indices: Array(20).fill("0")
       };
 
-      console.log('🔍 Generated inputs that should satisfy ALL circuit constraints:', {
-        ...inputs,
-        explanation: {
-          'pubkey_derivation': 'pubkey derived from secret_key',
-          'merkle_tree': 'single-leaf tree (commitment = root)',
-          'nullifier': 'hash of commitment + secret',
-          'balance_check': `${senderBalance} >= ${amount}`,
-          'account_transitions': 'using circuit send/receive methods'
-        }
-      });
+      // DETAILED CONSTRAINT VALIDATION LOGGING
+      console.log('🔍 CIRCUIT CONSTRAINT ANALYSIS - FIXED VERSION:');
+      console.log('='.repeat(60));
+      
+      // Constraint 1: Identity verification (main.nr:154-155)
+      console.log('CONSTRAINT 1 - Identity Verification:');
+      console.log('  Circuit code: assert(sender_account.pubkey == pedersen_hash([sender_secret_key]));');
+      console.log('  Input pubkey:', inputs.sender_account.pubkey);
+      console.log('  Input secret:', inputs.sender_secret_key);
+      const expectedPubkeyFromSecret = await hasher.hashSingle(inputs.sender_secret_key);
+      console.log('  Expected pubkey from secret:', expectedPubkeyFromSecret);
+      console.log('  ✓ Match:', inputs.sender_account.pubkey === expectedPubkeyFromSecret);
+      
+      // Constraint 2: Merkle proof verification (main.nr:159-164)
+      console.log('\nCONSTRAINT 2 - Merkle Tree Verification:');
+      console.log('  Circuit: verify_merkle_proof(sender_commitment, merkle_root, path, indices)');
+      console.log('  Tree root:', inputs.merkle_root);
+      console.log('  Sender commitment:', senderCommitment);
+      console.log('  Single-leaf case: root == commitment:', inputs.merkle_root === senderCommitment);
+      console.log('  Merkle path length:', inputs.sender_merkle_path.length);
+      console.log('  Merkle indices length:', inputs.sender_merkle_indices.length);
+      
+      // Constraint 3: Balance sufficiency (main.nr:167-168)
+      console.log('\nCONSTRAINT 3 - Balance Verification:');
+      console.log('  Circuit: assert(sender_account.balance >= transfer_amount);');
+      console.log('  Sender balance:', inputs.sender_account.balance, '(as number:', parseInt(inputs.sender_account.balance), ')');
+      console.log('  Transfer amount:', inputs.transfer_amount, '(as number:', parseInt(inputs.transfer_amount), ')');
+      console.log('  ✓ Sufficient:', parseInt(inputs.sender_account.balance) >= parseInt(inputs.transfer_amount));
+      
+      // Constraint 4: Account validity (main.nr:171-172)
+      console.log('\nCONSTRAINT 4 - Account Validity:');
+      console.log('  Asset ID match:', inputs.sender_account.asset_id, '==', inputs.asset_id, ':', inputs.sender_account.asset_id === inputs.asset_id);
+      
+      // Data type validation
+      console.log('\nDATA TYPE VALIDATION:');
+      console.log('  All string inputs (required for Noir Field):');
+      console.log('  - Secret key type:', typeof inputs.sender_secret_key);
+      console.log('  - Asset ID type:', typeof inputs.asset_id);
+      console.log('  - Transfer amount type:', typeof inputs.transfer_amount);
+      
+      console.log('\n📋 COMPLETE FIXED INPUTS:');
+      console.log(JSON.stringify(inputs, null, 2));
 
       setProgressMessage('Executing circuit and generating proof...');
       

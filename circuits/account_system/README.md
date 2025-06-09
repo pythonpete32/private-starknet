@@ -223,12 +223,6 @@ const bobCommitment = AccountSystem.getAccountCommitment(bobNewAccount);
 // She cannot generate bobCommitment without Bob's cooperation
 ```
 
-## 🚀 Future Enhancements
-
-**Phase 3.5**: Stealth addresses for non-interactive transfers  
-**Phase 4**: Smart contract integration with Cairo + Garaga  
-**Phase 5**: Batch transfers and relayer infrastructure  
-**Phase 6**: Cross-chain privacy bridges  
 
 ## 🎓 Educational Value
 
